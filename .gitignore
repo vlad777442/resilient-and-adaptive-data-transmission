@@ -1,0 +1,3 @@
+# Ignore tcp and udp directories
+/tcp/
+/udp/
