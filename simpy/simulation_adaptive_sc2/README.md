@@ -56,7 +56,7 @@ Simulates packet loss with these capabilities:
 2. Run the simulator
 
 ```bash
-python3 simulation_adaptive_sc2.py
+python3 simulation_sc2_adaptive.py
 ```
 
 ## Output Example

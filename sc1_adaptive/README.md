@@ -54,7 +54,7 @@ cd build
 cmake ..
 make
 # Start the receiver
-./receiver
+./receiver_adaptive
 # In another terminal, start the sender
 ./sender_adaptive
 ```

@@ -9,7 +9,7 @@ This directory contains simulation code for **Janus: Resilient and Adaptive Data
 - `/simulation_adaptive_sc1/` - Simulation with adaptive parameters m
 - `/simulation_adaptive_sc2/` - Simulation with adaptive parameters m for second scenario
 
-## Getting Started
+<!-- ## Getting Started
 
 ```bash
 # Clone the repository
@@ -23,7 +23,7 @@ pip install -r requirements.txt
 
 # Run a sample simulation
 python run_simulation.py
-```
+``` -->
 
 
 ## Dependencies
