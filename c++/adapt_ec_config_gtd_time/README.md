@@ -1,4 +1,4 @@
-# Adaptive Data Transmission Scenario 1
+# Adaptive Data Transmission Scenario 2
 
 ## Overview
 This system implements a high-performance data transmission protocol with adaptive erasure coding for multi-tier data. It consists of a sender and receiver that communicate over UDP and TCP channels, with the sender dynamically adjusting error correction parameters based on network conditions.
@@ -7,23 +7,24 @@ This system implements a high-performance data transmission protocol with adapti
 
 ### Sender (sender_adaptive.cpp)
 The sender component is responsible for:
-- Fragmenting data into multiple tiers with configurable sizes
+- Allowing the user to specify a constraint on transmission time which will be guaranteed
+- Fragmenting data of different tiers with configurable sizes
 - Applying erasure coding with dynamically adjusted parameters
 - Transmitting fragments via UDP
-- Handling retransmission requests received via TCP
-- Optimizing transmission parameters based on network conditions
+- Handling the control message exchange between sender and receiver via TCP
+- Optimizing transmission parameters based on network conditions to ensure the user-specified time constraint
 
 ### Receiver
 The receiver component is responsible for:
 - Reassembling fragments into complete data chunks
 - Detecting missing or corrupted fragments
-- Reporting network conditions back to the sender
+- Monitoring network conditions and reporting back to the sender
 
 ## Features
 - **Adaptive erasure coding**: Parameters are adjusted in real-time based on observed network conditions
 - **Dual-channel communication**:
     - UDP for high-speed data transmission
-    - TCP for control messages and reliability
+    - TCP for control messages exchange
 - **Fragment-level recovery**: Can recover from packet loss without needing complete retransmissions
 - **Real-time statistics**: Monitors and reports throughput, packet loss, and transmission times
 
@@ -37,6 +38,7 @@ The receiver component is responsible for:
 | N | Total number of fragments per chunk | 32 |
 | DEFAULT_M | Default parity fragments | 10 |
 | SLEEP_DURATION | Inter-packet delay in nanoseconds | 10000 |
+| TIME_CONSTR | Time threshold seconds | 100 |
 
 ## Building
 
@@ -54,8 +56,8 @@ cd build
 cmake ..
 make
 # Start the receiver
-./receiver
+./receiver_adapt_gtd_time
 # In another terminal, start the sender
-./sender_adaptive
+./sender_adapt_gtd_time
 ```
 

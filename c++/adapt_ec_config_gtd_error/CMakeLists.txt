@@ -13,21 +13,21 @@ find_package(Protobuf REQUIRED)
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ../fragment.proto)
 
 # Add sender executable
-add_executable(sender_adaptive 
-    sender_adaptive.cpp
+add_executable(sender_adapt_gtd_error 
+    sender_adapt_gtd_error.cpp
     ${PROTO_SRCS}
     ${PROTO_HDRS}
 )
 
 # Add receiver executable
-add_executable(receiver_adaptive 
-    receiver_adaptive.cpp
+add_executable(receiver_adapt_gtd_error 
+    receiver_adapt_gtd_error.cpp
     ${PROTO_SRCS}
     ${PROTO_HDRS}
 )
 
 # Include directories for both executables
-foreach(target sender_adaptive receiver_adaptive)
+foreach(target sender_adapt_gtd_error receiver_adapt_gtd_error)
     target_include_directories(${target} PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}
         ${Protobuf_INCLUDE_DIRS}

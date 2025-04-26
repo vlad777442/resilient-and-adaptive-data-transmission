@@ -1,4 +1,4 @@
-# Simulation Sc2 Adaptive
+# Simulation Adaptive Data Transfer with Guaranteed Error Bound
 
 ## Overview
 This simulator models the transmission of multi-tier data with adaptive erasure coding parameters in high-performance networking environments. It simulates packet loss scenarios and implements adaptive strategies to optimize transmission reliability and performance.
@@ -35,7 +35,7 @@ Simulates packet loss with these capabilities:
 - Supports dynamic lambda parameter changes
 - Can use fixed or Gaussian-distributed lambda values
 
-### formulaModule_sc2.py
+### formulaModule.py
 - Contains optimization models implementation
 - Calculates optimal parameters m based on packet loss
 
@@ -56,14 +56,17 @@ Simulates packet loss with these capabilities:
 2. Run the simulator
 
 ```bash
-python3 simulation_adaptive_sc2.py
+python3 sim_adapt_ec_config_gtd_error.py
 ```
 
-## Output Example
-Final EPS Error Counts per Tier for each best_m configuration:
-
---- Results for m = adaptive fault-tolerance configuration ---
-Eps values: {'eps1': 5}
+## Statistics Output
+The simulator provides detailed statistics including:
+- Transmission times for each tier
+- Total transmission time
+- Fragments sent per tier
+- Retransmitted chunks
+- Recovery error rates
+- Total data sent
 
 
 ## Notes

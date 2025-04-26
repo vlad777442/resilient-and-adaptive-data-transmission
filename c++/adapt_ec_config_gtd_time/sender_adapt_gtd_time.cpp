@@ -29,7 +29,7 @@
 #define T_RETRANS 0.01
 #define N 32
 #define DEFAULT_M 16
-#define TIME_CONSTR 94
+#define TIME_CONSTR 100
 
 
 using boost::asio::ip::tcp;

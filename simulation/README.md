@@ -5,9 +5,9 @@ This directory contains simulation code for **Janus: Resilient and Adaptive Data
 
 ## Structure
 
-- `/simulation_static_sc1/` - Simulation with constant parameters m
-- `/simulation_adaptive_sc1/` - Simulation with adaptive parameters m
-- `/simulation_adaptive_sc2/` - Simulation with adaptive parameters m for second scenario
+- `/sim_static_ec_config/` - Simulation with constant parameters m
+- `/sim_adapt_ec_config_gtd_error/` - Simulation with adaptive parameters m for ensuring a user-specified error bound in received and reconstructed data
+- `/sim_adapt_ec_config_gtd_time/` - Simulation with adaptive parameters m for guaranteeing a user-specified time constraint
 
 ## Getting Started
 
@@ -22,14 +22,22 @@ cd simulations
 pip install -r requirements.txt
 
 # Run a sample simulation
-python run_simulation.py
+cd /sim_static_ec_config/
+python sim_static_ec_config.py
+
+# Or
+cd /sim_adapt_ec_config_gtd_error/
+python sim_adapt_ec_config_gtd_error.py
+
+# Or
+cd /sim_adapt_ec_config_gtd_time/
+python sim_adapt_ec_config_gtd_time.py
 ```
 
 
 ## Dependencies
 
 - Python 3.7+
-- NumPy
 - SciPy
 - SimPy
 
