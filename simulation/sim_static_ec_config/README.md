@@ -6,5 +6,5 @@ This simulator models the transmission of multi-tier data with constant erasure 
 
 
 ```bash
-python3 simulation.py
+python3 sim_static_ec_config.py
 ```

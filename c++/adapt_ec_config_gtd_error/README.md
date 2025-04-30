@@ -7,17 +7,18 @@ This system implements a high-performance data transmission protocol with adapti
 
 ### Sender (sender_adaptive.cpp)
 The sender component is responsible for:
-- Fragmenting data into multiple tiers with configurable sizes
+- Allowing the user to specify an error bound on received and reconstructed data
+- Fragmenting data of different tiers with configurable sizes
 - Applying erasure coding with dynamically adjusted parameters
 - Transmitting fragments via UDP
-- Handling retransmission requests received via TCP
-- Optimizing transmission parameters based on network conditions
+- Handling the control message exchange between sender and receiver via TCP
+- Optimizing transmission parameters based on network conditions to ensure the user-specified error bound
 
 ### Receiver
 The receiver component is responsible for:
 - Reassembling fragments into complete data chunks
 - Detecting missing or corrupted fragments
-- Reporting network conditions back to the sender
+- Monitoring network conditions and reporting back to the sender
 
 ## Features
 - **Adaptive erasure coding**: Parameters are adjusted in real-time based on observed network conditions
@@ -54,8 +55,8 @@ cd build
 cmake ..
 make
 # Start the receiver
-./receiver_adaptive
+./receiver_adapt_gtd_error
 # In another terminal, start the sender
-./sender_adaptive
+./sender_adapt_gtd_error
 ```
 
