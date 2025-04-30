@@ -18,26 +18,45 @@ const bufSize = 1024 * 16
 
 func main() {
 	server := flag.String("server", "localhost:4242", "Server address (host:port)")
-	filePath := flag.String("file", "", "Path to file to send")
+	inputPath := flag.String("input", "", "Path to file(s) to send (can be a directory or specific file)")
+	verbose := flag.Bool("verbose", false, "Show detailed transfer statistics")
 	flag.Parse()
 
-	if *filePath == "" {
-		fmt.Println("Please specify a file to send with -file")
+	if *inputPath == "" {
+		fmt.Println("Please specify a file or directory with -input")
 		return
 	}
 
-	// Open the file to send
-	file, err := os.Open(*filePath)
+	// Check if the input path exists
+	inputInfo, err := os.Stat(*inputPath)
 	if err != nil {
-		fmt.Printf("Failed to open file: %v\n", err)
+		fmt.Printf("Failed to get info for input path: %v\n", err)
 		return
 	}
-	defer file.Close()
 
-	fileInfo, err := file.Stat()
-	if err != nil {
-		fmt.Printf("Failed to get file info: %v\n", err)
-		return
+	// Build a list of files to transfer
+	var filesToTransfer []string
+	if inputInfo.IsDir() {
+		// If directory, get all files in the directory
+		entries, err := os.ReadDir(*inputPath)
+		if err != nil {
+			fmt.Printf("Failed to read directory: %v\n", err)
+			return
+		}
+
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				filesToTransfer = append(filesToTransfer, filepath.Join(*inputPath, entry.Name()))
+			}
+		}
+
+		if len(filesToTransfer) == 0 {
+			fmt.Println("No files found in the specified directory")
+			return
+		}
+	} else {
+		// If file, just add it to the list
+		filesToTransfer = append(filesToTransfer, *inputPath)
 	}
 
 	// Configure TLS
@@ -49,7 +68,7 @@ func main() {
 	// Create a context for the connection
 	ctx := context.Background()
 
-	// Connect to the server - note the ctx parameter is now the first argument
+	// Connect to the server
 	conn, err := quic.DialAddr(
 		ctx,
 		*server,
@@ -61,47 +80,138 @@ func main() {
 		return
 	}
 	defer conn.CloseWithError(0, "client closed connection")
-
 	fmt.Printf("Connected to server: %s\n", *server)
 
-	// Create a stream for the file transfer
+	totalBytes := int64(0)
+	totalStartTime := time.Now()
+	transferTimes := make([]time.Duration, 0, len(filesToTransfer))
+
+	// Send each file
+	for i, filePath := range filesToTransfer {
+		fmt.Printf("[%d/%d] Processing file: %s\n", i+1, len(filesToTransfer), filePath)
+
+		fileStartTime := time.Now()
+		fileInfo, _ := os.Stat(filePath)
+		fileSize := fileInfo.Size()
+
+		if err := sendFile(ctx, conn, filePath, *verbose); err != nil {
+			fmt.Printf("Error sending file %s: %v\n", filePath, err)
+			continue
+		}
+
+		fileDuration := time.Since(fileStartTime)
+		transferTimes = append(transferTimes, fileDuration)
+		totalBytes += fileSize
+
+		if *verbose {
+			fileRate := float64(fileSize) / 1024 / 1024 / fileDuration.Seconds()
+			fmt.Printf("  File transfer time: %v (%.2f MB/s)\n", fileDuration, fileRate)
+		}
+	}
+
+	totalDuration := time.Since(totalStartTime)
+	rate := float64(totalBytes) / 1024 / 1024 / totalDuration.Seconds()
+
+	// Calculate min, max, and average transfer durations
+	var minTime, maxTime, totalTime time.Duration
+	if len(transferTimes) > 0 {
+		minTime = transferTimes[0]
+		maxTime = transferTimes[0]
+		totalTime = 0
+
+		for _, t := range transferTimes {
+			totalTime += t
+			if t < minTime {
+				minTime = t
+			}
+			if t > maxTime {
+				maxTime = t
+			}
+		}
+	}
+
+	// Print summary
+	fmt.Printf("\n=== Transfer Summary ===\n")
+	fmt.Printf("Files transferred: %d\n", len(transferTimes))
+	fmt.Printf("Total data: %.2f MB\n", float64(totalBytes)/(1024*1024))
+	fmt.Printf("Total time: %v\n", totalDuration)
+	fmt.Printf("Overall throughput: %.2f MB/s\n", rate)
+
+	if len(transferTimes) > 0 {
+		avgTime := totalTime / time.Duration(len(transferTimes))
+		fmt.Printf("\nFile transfer statistics:\n")
+		fmt.Printf("  Min time: %v\n", minTime)
+		fmt.Printf("  Max time: %v\n", maxTime)
+		fmt.Printf("  Avg time: %v\n", avgTime)
+	}
+}
+
+func sendFile(ctx context.Context, conn quic.Connection, filePath string, verbose bool) error {
+	// Open the file to send
+	file, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %v", err)
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %v", err)
+	}
+
+	// Create a stream for this file transfer
 	stream, err := conn.OpenStreamSync(ctx)
 	if err != nil {
-		fmt.Printf("Failed to open stream: %v\n", err)
-		return
+		return fmt.Errorf("failed to open stream: %v", err)
 	}
 	defer stream.Close()
 
 	// Send the filename first
-	filename := filepath.Base(*filePath)
+	filename := filepath.Base(filePath)
 	filenameBytes := []byte(filename)
 
 	// Write filename length as uint16
 	if err := binary.Write(stream, binary.BigEndian, uint16(len(filenameBytes))); err != nil {
-		fmt.Printf("Failed to send filename length: %v\n", err)
-		return
+		return fmt.Errorf("failed to send filename length: %v", err)
 	}
 
 	// Write filename
 	if _, err := stream.Write(filenameBytes); err != nil {
-		fmt.Printf("Failed to send filename: %v\n", err)
-		return
+		return fmt.Errorf("failed to send filename: %v", err)
+	}
+
+	// Send the file size as int64
+	if err := binary.Write(stream, binary.BigEndian, fileInfo.Size()); err != nil {
+		return fmt.Errorf("failed to send file size: %v", err)
 	}
 
 	fmt.Printf("Sending file: %s (%d bytes)\n", filename, fileInfo.Size())
 
-	// Start time for transfer rate calculation
+	// Track detailed timing
 	startTime := time.Now()
+	setupTime := time.Since(startTime)
+
+	// Time spent in various phases
+	dataStartTime := time.Now()
 
 	// Send the file data
 	n, err := io.Copy(stream, file)
 	if err != nil {
-		fmt.Printf("Failed to send file: %v\n", err)
-		return
+		return fmt.Errorf("failed to send file: %v", err)
 	}
 
-	duration := time.Since(startTime)
-	rate := float64(n) / 1024 / 1024 / duration.Seconds()
+	dataTransferTime := time.Since(dataStartTime)
+	totalTime := time.Since(startTime)
 
-	fmt.Printf("Successfully sent %d bytes in %v (%.2f MB/s)\n", n, duration, rate)
+	rate := float64(n) / 1024 / 1024 / dataTransferTime.Seconds()
+
+	if verbose {
+		fmt.Printf("  Setup time: %v\n", setupTime)
+		fmt.Printf("  Data transfer time: %v\n", dataTransferTime)
+		fmt.Printf("  Total transfer time: %v\n", totalTime)
+	}
+
+	fmt.Printf("Successfully sent %d bytes (%.2f MB/s)\n", n, rate)
+
+	return nil
 }

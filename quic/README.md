@@ -26,11 +26,20 @@ go build -o quic-client client.go
 
 ## To run
 ```
-Server: 
-./quic-server -port 4242 -output /path/to/save/files
+# Server: 
+# Start the server on default port (4242)
+go run server.go
 
-Client: 
-./quic-client -server server_ip:4242 -file /path/to/file/to/send
+# Or specify an output directory and port
+go run server.go -output /path/to/save/files -port 5000
+
+# Client: 
+
+# Send a single file
+go run client.go -server localhost:4242 -input /path/to/file.txt
+
+# Send all files from a directory
+go run client.go -server localhost:4242 -input /path/to/directory
 ```
 
 
@@ -43,3 +52,18 @@ sudo sysctl -w net.core.wmem_max=7340032
 ## Temporarily set the default UDP buffer size
 sudo sysctl -w net.core.rmem_default=7340032
 sudo sysctl -w net.core.wmem_default=7340032
+
+## Go Installation
+
+wget https://go.dev/dl/go1.24.2.linux-amd64.tar.gz
+
+sudo tar -C /usr/local -xzf go1.24.2.linux-amd64.tar.gz
+
+nano ~/.bashrc
+
+Add in the end
+
+export PATH=/usr/local/go/bin:$PATH
+
+reload:
+source ~/.bashrc
