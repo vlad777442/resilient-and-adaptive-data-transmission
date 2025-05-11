@@ -1,5 +1,12 @@
+sudo apt update
+sudo apt install -y protobuf-compiler libprotobuf-dev
+sudo apt install libboost-all-dev
+
+protoc --cpp_out=. fragment.proto
+
+
 g++ generate_tiers.cpp fragment.pb.cc -o generate_tiers \
     -std=c++17 \
     -lprotobuf \
-    -lboost_system \
     -lpthread
+

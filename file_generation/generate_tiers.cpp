@@ -10,7 +10,6 @@
 #include "fragment.pb.h"
 #include <fstream>
 
-#include <boost/asio.hpp>
 #include <iostream>
 #include <thread>
 #include <chrono>
