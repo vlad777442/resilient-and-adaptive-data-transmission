@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+message UdpPacket {
+  uint32 id = 1;
+  bytes payload = 2;
+}
