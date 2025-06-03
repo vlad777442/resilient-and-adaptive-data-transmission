@@ -29,7 +29,6 @@
 #include <google/protobuf/message.h>
 #include <google/protobuf/repeated_field.h>  // IWYU pragma: export
 #include <google/protobuf/extension_set.h>  // IWYU pragma: export
-#include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
@@ -46,9 +45,6 @@ struct TableStruct_fragment_2eproto {
 };
 extern const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_fragment_2eproto;
 namespace DATA {
-class ControlMessage;
-struct ControlMessageDefaultTypeInternal;
-extern ControlMessageDefaultTypeInternal _ControlMessage_default_instance_;
 class Fragment;
 struct FragmentDefaultTypeInternal;
 extern FragmentDefaultTypeInternal _Fragment_default_instance_;
@@ -93,7 +89,6 @@ struct VariableMetadataDefaultTypeInternal;
 extern VariableMetadataDefaultTypeInternal _VariableMetadata_default_instance_;
 }  // namespace DATA
 PROTOBUF_NAMESPACE_OPEN
-template<> ::DATA::ControlMessage* Arena::CreateMaybeMessage<::DATA::ControlMessage>(Arena*);
 template<> ::DATA::Fragment* Arena::CreateMaybeMessage<::DATA::Fragment>(Arena*);
 template<> ::DATA::FragmentsReport* Arena::CreateMaybeMessage<::DATA::FragmentsReport>(Arena*);
 template<> ::DATA::Metadata* Arena::CreateMaybeMessage<::DATA::Metadata>(Arena*);
@@ -111,33 +106,6 @@ template<> ::DATA::VariableMetadata* Arena::CreateMaybeMessage<::DATA::VariableM
 PROTOBUF_NAMESPACE_CLOSE
 namespace DATA {
 
-enum ControlMessage_ControlType : int {
-  ControlMessage_ControlType_UNKNOWN = 0,
-  ControlMessage_ControlType_TIER_END = 1,
-  ControlMessage_ControlType_TIER_COMPLETE = 2,
-  ControlMessage_ControlType_ALL_COMPLETE = 3,
-  ControlMessage_ControlType_ControlMessage_ControlType_INT_MIN_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::min(),
-  ControlMessage_ControlType_ControlMessage_ControlType_INT_MAX_SENTINEL_DO_NOT_USE_ = std::numeric_limits<int32_t>::max()
-};
-bool ControlMessage_ControlType_IsValid(int value);
-constexpr ControlMessage_ControlType ControlMessage_ControlType_ControlType_MIN = ControlMessage_ControlType_UNKNOWN;
-constexpr ControlMessage_ControlType ControlMessage_ControlType_ControlType_MAX = ControlMessage_ControlType_ALL_COMPLETE;
-constexpr int ControlMessage_ControlType_ControlType_ARRAYSIZE = ControlMessage_ControlType_ControlType_MAX + 1;
-
-const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ControlMessage_ControlType_descriptor();
-template<typename T>
-inline const std::string& ControlMessage_ControlType_Name(T enum_t_value) {
-  static_assert(::std::is_same<T, ControlMessage_ControlType>::value ||
-    ::std::is_integral<T>::value,
-    "Incorrect type passed to function ControlMessage_ControlType_Name.");
-  return ::PROTOBUF_NAMESPACE_ID::internal::NameOfEnum(
-    ControlMessage_ControlType_descriptor(), enum_t_value);
-}
-inline bool ControlMessage_ControlType_Parse(
-    ::PROTOBUF_NAMESPACE_ID::ConstStringParam name, ControlMessage_ControlType* value) {
-  return ::PROTOBUF_NAMESPACE_ID::internal::ParseNamedEnum<ControlMessage_ControlType>(
-    ControlMessage_ControlType_descriptor(), name, value);
-}
 // ===================================================================
 
 class QueryTable final :
@@ -3088,215 +3056,6 @@ class TierCompleteAck final :
   union { Impl_ _impl_; };
   friend struct ::TableStruct_fragment_2eproto;
 };
-// -------------------------------------------------------------------
-
-class ControlMessage final :
-    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:DATA.ControlMessage) */ {
- public:
-  inline ControlMessage() : ControlMessage(nullptr) {}
-  ~ControlMessage() override;
-  explicit PROTOBUF_CONSTEXPR ControlMessage(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
-
-  ControlMessage(const ControlMessage& from);
-  ControlMessage(ControlMessage&& from) noexcept
-    : ControlMessage() {
-    *this = ::std::move(from);
-  }
-
-  inline ControlMessage& operator=(const ControlMessage& from) {
-    CopyFrom(from);
-    return *this;
-  }
-  inline ControlMessage& operator=(ControlMessage&& from) noexcept {
-    if (this == &from) return *this;
-    if (GetOwningArena() == from.GetOwningArena()
-  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
-        && GetOwningArena() != nullptr
-  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
-    ) {
-      InternalSwap(&from);
-    } else {
-      CopyFrom(from);
-    }
-    return *this;
-  }
-
-  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
-    return GetDescriptor();
-  }
-  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
-    return default_instance().GetMetadata().descriptor;
-  }
-  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
-    return default_instance().GetMetadata().reflection;
-  }
-  static const ControlMessage& default_instance() {
-    return *internal_default_instance();
-  }
-  static inline const ControlMessage* internal_default_instance() {
-    return reinterpret_cast<const ControlMessage*>(
-               &_ControlMessage_default_instance_);
-  }
-  static constexpr int kIndexInFileMessages =
-    14;
-
-  friend void swap(ControlMessage& a, ControlMessage& b) {
-    a.Swap(&b);
-  }
-  inline void Swap(ControlMessage* other) {
-    if (other == this) return;
-  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
-    if (GetOwningArena() != nullptr &&
-        GetOwningArena() == other->GetOwningArena()) {
-   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
-    if (GetOwningArena() == other->GetOwningArena()) {
-  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
-      InternalSwap(other);
-    } else {
-      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
-    }
-  }
-  void UnsafeArenaSwap(ControlMessage* other) {
-    if (other == this) return;
-    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
-    InternalSwap(other);
-  }
-
-  // implements Message ----------------------------------------------
-
-  ControlMessage* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
-    return CreateMaybeMessage<ControlMessage>(arena);
-  }
-  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
-  void CopyFrom(const ControlMessage& from);
-  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
-  void MergeFrom( const ControlMessage& from) {
-    ControlMessage::MergeImpl(*this, from);
-  }
-  private:
-  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
-  public:
-  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
-  bool IsInitialized() const final;
-
-  size_t ByteSizeLong() const final;
-  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
-  uint8_t* _InternalSerialize(
-      uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
-  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
-
-  private:
-  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena, bool is_message_owned);
-  void SharedDtor();
-  void SetCachedSize(int size) const final;
-  void InternalSwap(ControlMessage* other);
-
-  private:
-  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
-  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
-    return "DATA.ControlMessage";
-  }
-  protected:
-  explicit ControlMessage(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                       bool is_message_owned = false);
-  public:
-
-  static const ClassData _class_data_;
-  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
-
-  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
-
-  // nested types ----------------------------------------------------
-
-  typedef ControlMessage_ControlType ControlType;
-  static constexpr ControlType UNKNOWN =
-    ControlMessage_ControlType_UNKNOWN;
-  static constexpr ControlType TIER_END =
-    ControlMessage_ControlType_TIER_END;
-  static constexpr ControlType TIER_COMPLETE =
-    ControlMessage_ControlType_TIER_COMPLETE;
-  static constexpr ControlType ALL_COMPLETE =
-    ControlMessage_ControlType_ALL_COMPLETE;
-  static inline bool ControlType_IsValid(int value) {
-    return ControlMessage_ControlType_IsValid(value);
-  }
-  static constexpr ControlType ControlType_MIN =
-    ControlMessage_ControlType_ControlType_MIN;
-  static constexpr ControlType ControlType_MAX =
-    ControlMessage_ControlType_ControlType_MAX;
-  static constexpr int ControlType_ARRAYSIZE =
-    ControlMessage_ControlType_ControlType_ARRAYSIZE;
-  static inline const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
-  ControlType_descriptor() {
-    return ControlMessage_ControlType_descriptor();
-  }
-  template<typename T>
-  static inline const std::string& ControlType_Name(T enum_t_value) {
-    static_assert(::std::is_same<T, ControlType>::value ||
-      ::std::is_integral<T>::value,
-      "Incorrect type passed to function ControlType_Name.");
-    return ControlMessage_ControlType_Name(enum_t_value);
-  }
-  static inline bool ControlType_Parse(::PROTOBUF_NAMESPACE_ID::ConstStringParam name,
-      ControlType* value) {
-    return ControlMessage_ControlType_Parse(name, value);
-  }
-
-  // accessors -------------------------------------------------------
-
-  enum : int {
-    kVarNameFieldNumber = 2,
-    kTypeFieldNumber = 1,
-    kTierIdFieldNumber = 3,
-  };
-  // string var_name = 2;
-  void clear_var_name();
-  const std::string& var_name() const;
-  template <typename ArgT0 = const std::string&, typename... ArgT>
-  void set_var_name(ArgT0&& arg0, ArgT... args);
-  std::string* mutable_var_name();
-  PROTOBUF_NODISCARD std::string* release_var_name();
-  void set_allocated_var_name(std::string* var_name);
-  private:
-  const std::string& _internal_var_name() const;
-  inline PROTOBUF_ALWAYS_INLINE void _internal_set_var_name(const std::string& value);
-  std::string* _internal_mutable_var_name();
-  public:
-
-  // .DATA.ControlMessage.ControlType type = 1;
-  void clear_type();
-  ::DATA::ControlMessage_ControlType type() const;
-  void set_type(::DATA::ControlMessage_ControlType value);
-  private:
-  ::DATA::ControlMessage_ControlType _internal_type() const;
-  void _internal_set_type(::DATA::ControlMessage_ControlType value);
-  public:
-
-  // uint32 tier_id = 3;
-  void clear_tier_id();
-  uint32_t tier_id() const;
-  void set_tier_id(uint32_t value);
-  private:
-  uint32_t _internal_tier_id() const;
-  void _internal_set_tier_id(uint32_t value);
-  public:
-
-  // @@protoc_insertion_point(class_scope:DATA.ControlMessage)
- private:
-  class _Internal;
-
-  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
-  typedef void InternalArenaConstructable_;
-  typedef void DestructorSkippable_;
-  struct Impl_ {
-    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr var_name_;
-    int type_;
-    uint32_t tier_id_;
-    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
-  };
-  union { Impl_ _impl_; };
-  friend struct ::TableStruct_fragment_2eproto;
-};
 // ===================================================================
 
 
@@ -5718,105 +5477,9 @@ inline void TierCompleteAck::set_tier_id(uint32_t value) {
   // @@protoc_insertion_point(field_set:DATA.TierCompleteAck.tier_id)
 }
 
-// -------------------------------------------------------------------
-
-// ControlMessage
-
-// .DATA.ControlMessage.ControlType type = 1;
-inline void ControlMessage::clear_type() {
-  _impl_.type_ = 0;
-}
-inline ::DATA::ControlMessage_ControlType ControlMessage::_internal_type() const {
-  return static_cast< ::DATA::ControlMessage_ControlType >(_impl_.type_);
-}
-inline ::DATA::ControlMessage_ControlType ControlMessage::type() const {
-  // @@protoc_insertion_point(field_get:DATA.ControlMessage.type)
-  return _internal_type();
-}
-inline void ControlMessage::_internal_set_type(::DATA::ControlMessage_ControlType value) {
-  
-  _impl_.type_ = value;
-}
-inline void ControlMessage::set_type(::DATA::ControlMessage_ControlType value) {
-  _internal_set_type(value);
-  // @@protoc_insertion_point(field_set:DATA.ControlMessage.type)
-}
-
-// string var_name = 2;
-inline void ControlMessage::clear_var_name() {
-  _impl_.var_name_.ClearToEmpty();
-}
-inline const std::string& ControlMessage::var_name() const {
-  // @@protoc_insertion_point(field_get:DATA.ControlMessage.var_name)
-  return _internal_var_name();
-}
-template <typename ArgT0, typename... ArgT>
-inline PROTOBUF_ALWAYS_INLINE
-void ControlMessage::set_var_name(ArgT0&& arg0, ArgT... args) {
- 
- _impl_.var_name_.Set(static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
-  // @@protoc_insertion_point(field_set:DATA.ControlMessage.var_name)
-}
-inline std::string* ControlMessage::mutable_var_name() {
-  std::string* _s = _internal_mutable_var_name();
-  // @@protoc_insertion_point(field_mutable:DATA.ControlMessage.var_name)
-  return _s;
-}
-inline const std::string& ControlMessage::_internal_var_name() const {
-  return _impl_.var_name_.Get();
-}
-inline void ControlMessage::_internal_set_var_name(const std::string& value) {
-  
-  _impl_.var_name_.Set(value, GetArenaForAllocation());
-}
-inline std::string* ControlMessage::_internal_mutable_var_name() {
-  
-  return _impl_.var_name_.Mutable(GetArenaForAllocation());
-}
-inline std::string* ControlMessage::release_var_name() {
-  // @@protoc_insertion_point(field_release:DATA.ControlMessage.var_name)
-  return _impl_.var_name_.Release();
-}
-inline void ControlMessage::set_allocated_var_name(std::string* var_name) {
-  if (var_name != nullptr) {
-    
-  } else {
-    
-  }
-  _impl_.var_name_.SetAllocated(var_name, GetArenaForAllocation());
-#ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  if (_impl_.var_name_.IsDefault()) {
-    _impl_.var_name_.Set("", GetArenaForAllocation());
-  }
-#endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  // @@protoc_insertion_point(field_set_allocated:DATA.ControlMessage.var_name)
-}
-
-// uint32 tier_id = 3;
-inline void ControlMessage::clear_tier_id() {
-  _impl_.tier_id_ = 0u;
-}
-inline uint32_t ControlMessage::_internal_tier_id() const {
-  return _impl_.tier_id_;
-}
-inline uint32_t ControlMessage::tier_id() const {
-  // @@protoc_insertion_point(field_get:DATA.ControlMessage.tier_id)
-  return _internal_tier_id();
-}
-inline void ControlMessage::_internal_set_tier_id(uint32_t value) {
-  
-  _impl_.tier_id_ = value;
-}
-inline void ControlMessage::set_tier_id(uint32_t value) {
-  _internal_set_tier_id(value);
-  // @@protoc_insertion_point(field_set:DATA.ControlMessage.tier_id)
-}
-
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
-// -------------------------------------------------------------------
-
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------
@@ -5847,16 +5510,6 @@ inline void ControlMessage::set_tier_id(uint32_t value) {
 // @@protoc_insertion_point(namespace_scope)
 
 }  // namespace DATA
-
-PROTOBUF_NAMESPACE_OPEN
-
-template <> struct is_proto_enum< ::DATA::ControlMessage_ControlType> : ::std::true_type {};
-template <>
-inline const EnumDescriptor* GetEnumDescriptor< ::DATA::ControlMessage_ControlType>() {
-  return ::DATA::ControlMessage_ControlType_descriptor();
-}
-
-PROTOBUF_NAMESPACE_CLOSE
 
 // @@protoc_insertion_point(global_scope)
 

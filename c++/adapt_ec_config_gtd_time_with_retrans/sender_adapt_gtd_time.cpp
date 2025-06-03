@@ -267,13 +267,16 @@ private:
     double t_threshold = TIME_CONSTR;
 
     size_t current_tier_ = 0;
-  
+    std::vector<size_t> max_retransmissions_per_tier_;
+    std::vector<size_t> retransmission_count_per_tier_;
+    
 public:
     Sender(boost::asio::io_context& io_context, 
            const std::string& receiver_address, 
            unsigned short udp_port,
            unsigned short tcp_port,
-           const std::vector<long long>& tier_sizes)
+           const std::vector<long long>& tier_sizes,
+           const std::vector<size_t>& max_retransmissions = {})
         : io_context_(io_context),
           udp_socket_(io_context, udp::endpoint(udp::v4(), 0)),
           receiver_endpoint_(boost::asio::ip::address::from_string(receiver_address), udp_port),
@@ -282,6 +285,17 @@ public:
           tier_sizes(tier_sizes)
     {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+        size_t num_tiers = tier_sizes.size();
+        retransmission_count_per_tier_.resize(num_tiers, 0);
+    
+        if (!max_retransmissions.empty()) {
+            max_retransmissions_per_tier_ = max_retransmissions;
+            max_retransmissions_per_tier_.resize(num_tiers, 5);
+        } else {
+            max_retransmissions_per_tier_.resize(num_tiers, 5);
+        }
+
         connect_to_receiver(receiver_address, tcp_port);
     }
 
@@ -342,6 +356,11 @@ public:
             std::cout << "All tiers transmitted!" << std::endl;
             send_final_eot();
             return;
+        }
+
+        // Reset retransmission count for the current tier
+        if (tier_id < retransmission_count_per_tier_.size()) {
+            retransmission_count_per_tier_[tier_id] = 0;
         }
 
         std::cout << "Sending tier " << tier_id << std::endl;
@@ -665,22 +684,21 @@ private:
     }
 
     void handle_tcp_message(const std::vector<char>& buffer) {
-        // First try to parse as FragmentsReport (since you check this has var_name)
-        DATA::FragmentsReport report;
-        if (report.ParseFromArray(buffer.data(), buffer.size()) && !report.var_name().empty()) {
-            handle_report(report);
-            return;
-        }
-    
-        // Then try to parse as RetransmissionRequest
+        // First try to parse as RetransmissionRequest
         DATA::RetransmissionRequest request;
         if (request.ParseFromArray(buffer.data(), buffer.size()) && request.variables_size() > 0) {
             handle_request_data(request);
             return;
         }
     
+        // Then try to parse as FragmentsReport
+        DATA::FragmentsReport report;
+        if (report.ParseFromArray(buffer.data(), buffer.size()) && report.var_name().size() > 0) {
+            handle_report(report);
+            return;
+        }
+    
         // Finally try to parse as TierCompleteAck
-        // Make sure to verify it's actually a TierCompleteAck by checking field existence
         DATA::TierCompleteAck ack;
         if (ack.ParseFromArray(buffer.data(), buffer.size()) && ack.tier_id() >= 0) {
             std::cout << "Received TierCompleteAck for tier " << ack.tier_id() << std::endl;
@@ -708,6 +726,26 @@ private:
                 uint32_t requested_tier_id = tier_request.tier_id();
                 std::cout << "Processing retransmission request for tier " << requested_tier_id << std::endl;
                 
+                // Check retransmission limit
+                if (retransmission_count_per_tier_[requested_tier_id] >= max_retransmissions_per_tier_[requested_tier_id]) {
+                    std::cout << "Maximum retransmissions (" 
+                              << max_retransmissions_per_tier_[requested_tier_id] 
+                              << ") reached for tier " << requested_tier_id 
+                              << ". Moving to next tier." << std::endl;
+                    
+                    // If this is the current tier, move to the next tier
+                    if (requested_tier_id == current_tier_) {
+                        current_tier_++;
+                        send_tier(current_tier_);
+                    }
+                    continue;
+                }
+
+                retransmission_count_per_tier_[requested_tier_id]++;
+                std::cout << "Retransmission count for tier " << requested_tier_id 
+                        << ": " << retransmission_count_per_tier_[requested_tier_id] 
+                        << "/" << max_retransmissions_per_tier_[requested_tier_id] << std::endl;
+
                 // Process requests for any tier, not just current_tier_
                 if (requested_tier_id < fragments_.fragments.size()) {
                     for (int chunk_id : tier_request.chunk_ids()) {
@@ -750,7 +788,7 @@ private:
 
     void handle_report(DATA::FragmentsReport report) {
         std::cout << "Received fragments report." << std::endl;
-
+    
         std::string var_name = report.var_name();
         uint32_t tier_id = report.tier_id();
         uint32_t total_fragments = report.total_fragments();
@@ -908,9 +946,7 @@ int main() {
         tier_sizes_tmp.push_back(size * k);
     }
 
-    
-    std::cout << std::endl;
-    
+    std::vector<size_t> max_retransmissions = {10, 8, 4, 2};   
     std::cout << "Calling generateFragments..." << std::endl;
     // FragmentStore fragments = generateFragments(tier_sizes, frag_size);
     FragmentStore fragments = generateFragments(tier_sizes_tmp, 4096, current_m);
@@ -927,7 +963,7 @@ int main() {
     try {
         std::cout << "Sending fragments via UDP" << std::endl;
         boost::asio::io_context io_context;
-        Sender sender(io_context, IPADDRESS, UDP_PORT, TCP_PORT, tier_sizes);
+        Sender sender(io_context, IPADDRESS, UDP_PORT, TCP_PORT, tier_sizes, max_retransmissions);
 
         std::thread io_thread([&io_context]() {
             std::cout << "IO context starting\n";

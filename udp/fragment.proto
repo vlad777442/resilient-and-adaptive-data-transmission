@@ -119,15 +119,3 @@ message FragmentsReport {
 message TierCompleteAck {
     uint32 tier_id = 1;  // The tier ID that has been completely received
 }
-
-message ControlMessage {
-    enum ControlType {
-        UNKNOWN = 0;
-        TIER_END = 1; // Sender finishes sending initial/retrans batch for a tier
-        TIER_COMPLETE = 2; // Receiver confirms a tier is complete
-        ALL_COMPLETE = 3; // Receiver confirms all tiers are complete (final signal)
-    }
-    ControlType type = 1;
-    string var_name = 2; // Variable name the control applies to
-    uint32 tier_id = 3;  // Tier ID the control applies to
-}

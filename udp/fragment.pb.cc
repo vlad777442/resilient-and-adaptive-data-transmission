@@ -264,24 +264,9 @@ struct TierCompleteAckDefaultTypeInternal {
   };
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 TierCompleteAckDefaultTypeInternal _TierCompleteAck_default_instance_;
-PROTOBUF_CONSTEXPR ControlMessage::ControlMessage(
-    ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.var_name_)*/{&::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized{}}
-  , /*decltype(_impl_.type_)*/0
-  , /*decltype(_impl_.tier_id_)*/0u
-  , /*decltype(_impl_._cached_size_)*/{}} {}
-struct ControlMessageDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR ControlMessageDefaultTypeInternal()
-      : _instance(::_pbi::ConstantInitialized{}) {}
-  ~ControlMessageDefaultTypeInternal() {}
-  union {
-    ControlMessage _instance;
-  };
-};
-PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ControlMessageDefaultTypeInternal _ControlMessage_default_instance_;
 }  // namespace DATA
-static ::_pb::Metadata file_level_metadata_fragment_2eproto[15];
-static const ::_pb::EnumDescriptor* file_level_enum_descriptors_fragment_2eproto[1];
+static ::_pb::Metadata file_level_metadata_fragment_2eproto[14];
+static constexpr ::_pb::EnumDescriptor const** file_level_enum_descriptors_fragment_2eproto = nullptr;
 static constexpr ::_pb::ServiceDescriptor const** file_level_service_descriptors_fragment_2eproto = nullptr;
 
 const uint32_t TableStruct_fragment_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
@@ -438,15 +423,6 @@ const uint32_t TableStruct_fragment_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE
   ~0u,  // no _weak_field_map_
   ~0u,  // no _inlined_string_donated_
   PROTOBUF_FIELD_OFFSET(::DATA::TierCompleteAck, _impl_.tier_id_),
-  ~0u,  // no _has_bits_
-  PROTOBUF_FIELD_OFFSET(::DATA::ControlMessage, _internal_metadata_),
-  ~0u,  // no _extensions_
-  ~0u,  // no _oneof_case_
-  ~0u,  // no _weak_field_map_
-  ~0u,  // no _inlined_string_donated_
-  PROTOBUF_FIELD_OFFSET(::DATA::ControlMessage, _impl_.type_),
-  PROTOBUF_FIELD_OFFSET(::DATA::ControlMessage, _impl_.var_name_),
-  PROTOBUF_FIELD_OFFSET(::DATA::ControlMessage, _impl_.tier_id_),
 };
 static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, -1, -1, sizeof(::DATA::QueryTable)},
@@ -463,7 +439,6 @@ static const ::_pbi::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protode
   { 126, -1, -1, sizeof(::DATA::Metadata)},
   { 133, -1, -1, sizeof(::DATA::FragmentsReport)},
   { 146, -1, -1, sizeof(::DATA::TierCompleteAck)},
-  { 153, -1, -1, sizeof(::DATA::ControlMessage)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -481,7 +456,6 @@ static const ::_pb::Message* const file_default_instances[] = {
   &::DATA::_Metadata_default_instance_._instance,
   &::DATA::_FragmentsReport_default_instance_._instance,
   &::DATA::_TierCompleteAck_default_instance_._instance,
-  &::DATA::_ControlMessage_default_instance_._instance,
 };
 
 const char descriptor_table_protodef_fragment_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
@@ -530,18 +504,13 @@ const char descriptor_table_protodef_fragment_2eproto[] PROTOBUF_SECTION_VARIABL
   "essed\030\003 \001(\r\022\027\n\017total_fragments\030\004 \001(\r\022\032\n\022"
   "expected_fragments\030\005 \001(\r\022\023\n\013time_window\030"
   "\006 \001(\004\022\016\n\006lambda\030\007 \001(\001\"\"\n\017TierCompleteAck"
-  "\022\017\n\007tier_id\030\001 \001(\r\"\262\001\n\016ControlMessage\022.\n\004"
-  "type\030\001 \001(\0162 .DATA.ControlMessage.Control"
-  "Type\022\020\n\010var_name\030\002 \001(\t\022\017\n\007tier_id\030\003 \001(\r\""
-  "M\n\013ControlType\022\013\n\007UNKNOWN\020\000\022\014\n\010TIER_END\020"
-  "\001\022\021\n\rTIER_COMPLETE\020\002\022\020\n\014ALL_COMPLETE\020\003b\006"
-  "proto3"
+  "\022\017\n\007tier_id\030\001 \001(\rb\006proto3"
   ;
 static ::_pbi::once_flag descriptor_table_fragment_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_fragment_2eproto = {
-    false, false, 2006, descriptor_table_protodef_fragment_2eproto,
+    false, false, 1825, descriptor_table_protodef_fragment_2eproto,
     "fragment.proto",
-    &descriptor_table_fragment_2eproto_once, nullptr, 0, 15,
+    &descriptor_table_fragment_2eproto_once, nullptr, 0, 14,
     schemas, file_default_instances, TableStruct_fragment_2eproto::offsets,
     file_level_metadata_fragment_2eproto, file_level_enum_descriptors_fragment_2eproto,
     file_level_service_descriptors_fragment_2eproto,
@@ -553,31 +522,6 @@ PROTOBUF_ATTRIBUTE_WEAK const ::_pbi::DescriptorTable* descriptor_table_fragment
 // Force running AddDescriptors() at dynamic initialization time.
 PROTOBUF_ATTRIBUTE_INIT_PRIORITY2 static ::_pbi::AddDescriptorsRunner dynamic_init_dummy_fragment_2eproto(&descriptor_table_fragment_2eproto);
 namespace DATA {
-const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* ControlMessage_ControlType_descriptor() {
-  ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(&descriptor_table_fragment_2eproto);
-  return file_level_enum_descriptors_fragment_2eproto[0];
-}
-bool ControlMessage_ControlType_IsValid(int value) {
-  switch (value) {
-    case 0:
-    case 1:
-    case 2:
-    case 3:
-      return true;
-    default:
-      return false;
-  }
-}
-
-#if (__cplusplus < 201703) && (!defined(_MSC_VER) || (_MSC_VER >= 1900 && _MSC_VER < 1912))
-constexpr ControlMessage_ControlType ControlMessage::UNKNOWN;
-constexpr ControlMessage_ControlType ControlMessage::TIER_END;
-constexpr ControlMessage_ControlType ControlMessage::TIER_COMPLETE;
-constexpr ControlMessage_ControlType ControlMessage::ALL_COMPLETE;
-constexpr ControlMessage_ControlType ControlMessage::ControlType_MIN;
-constexpr ControlMessage_ControlType ControlMessage::ControlType_MAX;
-constexpr int ControlMessage::ControlType_ARRAYSIZE;
-#endif  // (__cplusplus < 201703) && (!defined(_MSC_VER) || (_MSC_VER >= 1900 && _MSC_VER < 1912))
 
 // ===================================================================
 
@@ -4981,272 +4925,6 @@ void TierCompleteAck::InternalSwap(TierCompleteAck* other) {
       file_level_metadata_fragment_2eproto[13]);
 }
 
-// ===================================================================
-
-class ControlMessage::_Internal {
- public:
-};
-
-ControlMessage::ControlMessage(::PROTOBUF_NAMESPACE_ID::Arena* arena,
-                         bool is_message_owned)
-  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned) {
-  SharedCtor(arena, is_message_owned);
-  // @@protoc_insertion_point(arena_constructor:DATA.ControlMessage)
-}
-ControlMessage::ControlMessage(const ControlMessage& from)
-  : ::PROTOBUF_NAMESPACE_ID::Message() {
-  ControlMessage* const _this = this; (void)_this;
-  new (&_impl_) Impl_{
-      decltype(_impl_.var_name_){}
-    , decltype(_impl_.type_){}
-    , decltype(_impl_.tier_id_){}
-    , /*decltype(_impl_._cached_size_)*/{}};
-
-  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  _impl_.var_name_.InitDefault();
-  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    _impl_.var_name_.Set("", GetArenaForAllocation());
-  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-  if (!from._internal_var_name().empty()) {
-    _this->_impl_.var_name_.Set(from._internal_var_name(), 
-      _this->GetArenaForAllocation());
-  }
-  ::memcpy(&_impl_.type_, &from._impl_.type_,
-    static_cast<size_t>(reinterpret_cast<char*>(&_impl_.tier_id_) -
-    reinterpret_cast<char*>(&_impl_.type_)) + sizeof(_impl_.tier_id_));
-  // @@protoc_insertion_point(copy_constructor:DATA.ControlMessage)
-}
-
-inline void ControlMessage::SharedCtor(
-    ::_pb::Arena* arena, bool is_message_owned) {
-  (void)arena;
-  (void)is_message_owned;
-  new (&_impl_) Impl_{
-      decltype(_impl_.var_name_){}
-    , decltype(_impl_.type_){0}
-    , decltype(_impl_.tier_id_){0u}
-    , /*decltype(_impl_._cached_size_)*/{}
-  };
-  _impl_.var_name_.InitDefault();
-  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
-    _impl_.var_name_.Set("", GetArenaForAllocation());
-  #endif // PROTOBUF_FORCE_COPY_DEFAULT_STRING
-}
-
-ControlMessage::~ControlMessage() {
-  // @@protoc_insertion_point(destructor:DATA.ControlMessage)
-  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
-  (void)arena;
-    return;
-  }
-  SharedDtor();
-}
-
-inline void ControlMessage::SharedDtor() {
-  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
-  _impl_.var_name_.Destroy();
-}
-
-void ControlMessage::SetCachedSize(int size) const {
-  _impl_._cached_size_.Set(size);
-}
-
-void ControlMessage::Clear() {
-// @@protoc_insertion_point(message_clear_start:DATA.ControlMessage)
-  uint32_t cached_has_bits = 0;
-  // Prevent compiler warnings about cached_has_bits being unused
-  (void) cached_has_bits;
-
-  _impl_.var_name_.ClearToEmpty();
-  ::memset(&_impl_.type_, 0, static_cast<size_t>(
-      reinterpret_cast<char*>(&_impl_.tier_id_) -
-      reinterpret_cast<char*>(&_impl_.type_)) + sizeof(_impl_.tier_id_));
-  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
-}
-
-const char* ControlMessage::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
-#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
-  while (!ctx->Done(&ptr)) {
-    uint32_t tag;
-    ptr = ::_pbi::ReadTag(ptr, &tag);
-    switch (tag >> 3) {
-      // .DATA.ControlMessage.ControlType type = 1;
-      case 1:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 8)) {
-          uint64_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
-          CHK_(ptr);
-          _internal_set_type(static_cast<::DATA::ControlMessage_ControlType>(val));
-        } else
-          goto handle_unusual;
-        continue;
-      // string var_name = 2;
-      case 2:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 18)) {
-          auto str = _internal_mutable_var_name();
-          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
-          CHK_(ptr);
-          CHK_(::_pbi::VerifyUTF8(str, "DATA.ControlMessage.var_name"));
-        } else
-          goto handle_unusual;
-        continue;
-      // uint32 tier_id = 3;
-      case 3:
-        if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 24)) {
-          _impl_.tier_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
-          CHK_(ptr);
-        } else
-          goto handle_unusual;
-        continue;
-      default:
-        goto handle_unusual;
-    }  // switch
-  handle_unusual:
-    if ((tag == 0) || ((tag & 7) == 4)) {
-      CHK_(ptr);
-      ctx->SetLastTag(tag);
-      goto message_done;
-    }
-    ptr = UnknownFieldParse(
-        tag,
-        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
-        ptr, ctx);
-    CHK_(ptr != nullptr);
-  }  // while
-message_done:
-  return ptr;
-failure:
-  ptr = nullptr;
-  goto message_done;
-#undef CHK_
-}
-
-uint8_t* ControlMessage::_InternalSerialize(
-    uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
-  // @@protoc_insertion_point(serialize_to_array_start:DATA.ControlMessage)
-  uint32_t cached_has_bits = 0;
-  (void) cached_has_bits;
-
-  // .DATA.ControlMessage.ControlType type = 1;
-  if (this->_internal_type() != 0) {
-    target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteEnumToArray(
-      1, this->_internal_type(), target);
-  }
-
-  // string var_name = 2;
-  if (!this->_internal_var_name().empty()) {
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
-      this->_internal_var_name().data(), static_cast<int>(this->_internal_var_name().length()),
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
-      "DATA.ControlMessage.var_name");
-    target = stream->WriteStringMaybeAliased(
-        2, this->_internal_var_name(), target);
-  }
-
-  // uint32 tier_id = 3;
-  if (this->_internal_tier_id() != 0) {
-    target = stream->EnsureSpace(target);
-    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(3, this->_internal_tier_id(), target);
-  }
-
-  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
-    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
-        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
-  }
-  // @@protoc_insertion_point(serialize_to_array_end:DATA.ControlMessage)
-  return target;
-}
-
-size_t ControlMessage::ByteSizeLong() const {
-// @@protoc_insertion_point(message_byte_size_start:DATA.ControlMessage)
-  size_t total_size = 0;
-
-  uint32_t cached_has_bits = 0;
-  // Prevent compiler warnings about cached_has_bits being unused
-  (void) cached_has_bits;
-
-  // string var_name = 2;
-  if (!this->_internal_var_name().empty()) {
-    total_size += 1 +
-      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
-        this->_internal_var_name());
-  }
-
-  // .DATA.ControlMessage.ControlType type = 1;
-  if (this->_internal_type() != 0) {
-    total_size += 1 +
-      ::_pbi::WireFormatLite::EnumSize(this->_internal_type());
-  }
-
-  // uint32 tier_id = 3;
-  if (this->_internal_tier_id() != 0) {
-    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(this->_internal_tier_id());
-  }
-
-  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
-}
-
-const ::PROTOBUF_NAMESPACE_ID::Message::ClassData ControlMessage::_class_data_ = {
-    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
-    ControlMessage::MergeImpl
-};
-const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*ControlMessage::GetClassData() const { return &_class_data_; }
-
-
-void ControlMessage::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
-  auto* const _this = static_cast<ControlMessage*>(&to_msg);
-  auto& from = static_cast<const ControlMessage&>(from_msg);
-  // @@protoc_insertion_point(class_specific_merge_from_start:DATA.ControlMessage)
-  GOOGLE_DCHECK_NE(&from, _this);
-  uint32_t cached_has_bits = 0;
-  (void) cached_has_bits;
-
-  if (!from._internal_var_name().empty()) {
-    _this->_internal_set_var_name(from._internal_var_name());
-  }
-  if (from._internal_type() != 0) {
-    _this->_internal_set_type(from._internal_type());
-  }
-  if (from._internal_tier_id() != 0) {
-    _this->_internal_set_tier_id(from._internal_tier_id());
-  }
-  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-}
-
-void ControlMessage::CopyFrom(const ControlMessage& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:DATA.ControlMessage)
-  if (&from == this) return;
-  Clear();
-  MergeFrom(from);
-}
-
-bool ControlMessage::IsInitialized() const {
-  return true;
-}
-
-void ControlMessage::InternalSwap(ControlMessage* other) {
-  using std::swap;
-  auto* lhs_arena = GetArenaForAllocation();
-  auto* rhs_arena = other->GetArenaForAllocation();
-  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
-      &_impl_.var_name_, lhs_arena,
-      &other->_impl_.var_name_, rhs_arena
-  );
-  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(ControlMessage, _impl_.tier_id_)
-      + sizeof(ControlMessage::_impl_.tier_id_)
-      - PROTOBUF_FIELD_OFFSET(ControlMessage, _impl_.type_)>(
-          reinterpret_cast<char*>(&_impl_.type_),
-          reinterpret_cast<char*>(&other->_impl_.type_));
-}
-
-::PROTOBUF_NAMESPACE_ID::Metadata ControlMessage::GetMetadata() const {
-  return ::_pbi::AssignDescriptors(
-      &descriptor_table_fragment_2eproto_getter, &descriptor_table_fragment_2eproto_once,
-      file_level_metadata_fragment_2eproto[14]);
-}
-
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace DATA
 PROTOBUF_NAMESPACE_OPEN
@@ -5305,10 +4983,6 @@ Arena::CreateMaybeMessage< ::DATA::FragmentsReport >(Arena* arena) {
 template<> PROTOBUF_NOINLINE ::DATA::TierCompleteAck*
 Arena::CreateMaybeMessage< ::DATA::TierCompleteAck >(Arena* arena) {
   return Arena::CreateMessageInternal< ::DATA::TierCompleteAck >(arena);
-}
-template<> PROTOBUF_NOINLINE ::DATA::ControlMessage*
-Arena::CreateMaybeMessage< ::DATA::ControlMessage >(Arena* arena) {
-  return Arena::CreateMessageInternal< ::DATA::ControlMessage >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 
