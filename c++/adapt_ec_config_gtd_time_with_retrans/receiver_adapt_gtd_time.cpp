@@ -508,6 +508,7 @@ private:
             return;
         } else if (tier_id == -2) {
             std::cout << "Received final EOT (time threshold exceeded). Transmission finished." << std::endl;
+            output_missing_chunks_per_tier();
             transmission_complete_ = true;
             return;
         }
@@ -528,6 +529,55 @@ private:
                 }
             }
         });
+    }
+
+    void output_missing_chunks_per_tier() {
+        std::cout << "\n=== Missing Chunks Per Tier Report ===" << std::endl;
+        
+        std::map<int32_t, int> missing_chunks_per_tier;
+        
+        // Count missing chunks for each tier
+        for (const auto& [var_name, var_info] : variablesMetadata) {
+            for (const auto& [tier_id, tier_info] : var_info.tiers) {
+                int missing_count = 0;
+                
+                // If variable doesn't exist or tier doesn't exist, all chunks are missing
+                if (variables.find(var_name) == variables.end() || 
+                    variables[var_name].tiers.find(tier_id) == variables[var_name].tiers.end()) {
+                    missing_count = tier_info.expected_chunks.size();
+                } else {
+                    const auto& tier = variables[var_name].tiers.at(tier_id);
+                    
+                    // Check each expected chunk
+                    for (uint32_t expected_chunk_id : tier_info.expected_chunks) {
+                        if (tier.chunks.find(expected_chunk_id) == tier.chunks.end()) {
+                            // Chunk is missing completely
+                            missing_count++;
+                        } else {
+                            // Check if chunk has enough fragments
+                            const auto& chunk = tier.chunks.at(expected_chunk_id);
+                            int32_t k = tier_info.k;
+                            
+                            if (chunk.data_fragments.size() + chunk.parity_fragments.size() < static_cast<size_t>(k)) {
+                                missing_count++;
+                            }
+                        }
+                    }
+                }
+                
+                missing_chunks_per_tier[tier_id] += missing_count;
+            }
+        }
+        
+        // Output the results
+        int total_missing = 0;
+        for (const auto& [tier_id, missing_count] : missing_chunks_per_tier) {
+            std::cout << "Tier " << tier_id << ": " << missing_count << " missing chunks" << std::endl;
+            total_missing += missing_count;
+        }
+        
+        std::cout << "Total missing chunks across all tiers: " << total_missing << std::endl;
+        std::cout << "======================================\n" << std::endl;
     }
 
     bool check_tier_completeness(int32_t tier_id) {
@@ -632,7 +682,7 @@ private:
             
             for (uint32_t chunk_id : chunk_ids) {
                 tier_request->add_chunk_ids(chunk_id);
-                std::cout << "Requesting retransmission for " << var_name << " tier=" << tier_id << " chunk=" << chunk_id << std::endl;
+                // std::cout << "Requesting retransmission for " << var_name << " tier=" << tier_id << " chunk=" << chunk_id << std::endl;
             }
         }
         
@@ -682,17 +732,14 @@ private:
                 
                 // Check if chunk has enough fragments
                 const auto& chunk = tier.chunks.at(chunk_id);
-                int32_t k;
-                if (!chunk.data_fragments.empty()) {
-                    k = chunk.data_fragments.begin()->second.k;
-                } else if (!chunk.parity_fragments.empty()) {
-                    k = chunk.parity_fragments.begin()->second.k;
-                } else {
-                    // Should not happen, but just in case
-                    k = 0;
-                }
+                int32_t k = static_cast<int32_t>(tier_info.k); // Use k from metadata instead
                 
                 if (chunk.data_fragments.size() + chunk.parity_fragments.size() < static_cast<size_t>(k)) {
+                    std::cout << "Tier: " << tier_id << " chunk: " 
+                        << chunk_id << " " << chunk.data_fragments.size() << " - data " 
+                        << chunk.parity_fragments.size() << " parity " 
+                        << " k: " << static_cast<size_t>(k) << std::endl;
+
                     missing_chunks.push_back({
                         var_name,
                         tier_id,
@@ -704,12 +751,24 @@ private:
             }
         }
         
+        // Before returning, print information about missing chunks
+        std::cout << "\nMissing chunks for tier " << tier_id << ":" << std::endl;
+        if (missing_chunks.empty()) {
+            std::cout << "  No missing chunks found!" << std::endl;
+        } else {
+            // for (const auto& chunk : missing_chunks) {
+            // std::cout << "  Variable: " << chunk.var_name
+            //     << ", Chunk: " << chunk.chunk_id
+            //     << ", Has fragments: " << chunk.dataFragmentCount
+            //     << ", Needs: " << chunk.k << std::endl;
+            // }
+            std::cout << "Total missing chunks: " << missing_chunks.size() << std::endl;
+        }
+        
         return missing_chunks;
     }
 
     void handle_tcp_message(const std::vector<char>& buffer) {
-        std::cout << "Received TCP message of size " << buffer.size() << std::endl;
-        
         // First try to parse as EOT
         DATA::Fragment eot;
         if (eot.ParseFromArray(buffer.data(), buffer.size()) && eot.fragment_id() == -1) {
@@ -843,7 +902,7 @@ private:
 
                 for (int32_t chunk_id : chunk_ids) {
                     tier_request->add_chunk_ids(chunk_id);
-                    std::cout << "Missing chunks for " << var_name << " tier " << tier_id << ": " << chunk_id << std::endl;
+                    // std::cout << "Missing chunks for " << var_name << " tier " << tier_id << ": " << chunk_id << std::endl;
                 }
             }
         }

@@ -268,7 +268,7 @@ private:
             auto latency = receive_time - received_message.timestamp();
             total_time += latency;
             cnt++;
-            std::cout << "Packet latency: " << latency << " nanoseconds" << std::endl;
+            // std::cout << "Packet latency: " << latency << " nanoseconds" << std::endl;
 
             Fragment myFragment;
             setFragment(received_message, myFragment);
@@ -282,11 +282,15 @@ private:
             } else {
                 it->second.updateFragmentFromMessage(myFragment, received_message);
             }
+            
+            if (cnt % 1000 == 0) {
+                std::cout << "Received " << cnt << " fragments so far." << std::endl;
+            }
 
-            std::cout << "Received fragment: " << received_message.var_name() 
-                     << " tier=" << received_message.tier_id() 
-                     << " chunk=" << received_message.chunk_id() 
-                     << " frag=" << received_message.fragment_id() << std::endl;
+            // std::cout << "Received fragment: " << received_message.var_name() 
+            //          << " tier=" << received_message.tier_id() 
+            //          << " chunk=" << received_message.chunk_id() 
+            //          << " frag=" << received_message.fragment_id() << std::endl;
         }
     }
 

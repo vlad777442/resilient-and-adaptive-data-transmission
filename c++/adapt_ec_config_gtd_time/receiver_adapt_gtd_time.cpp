@@ -500,10 +500,11 @@ private:
 
     void handle_tcp_message(const std::vector<char>& buffer) {
         std::cout << "Received TCP message of size " << buffer.size() << std::endl;
+        
         // First try to parse as EOT
         DATA::Fragment eot;
         if (eot.ParseFromArray(buffer.data(), buffer.size()) && eot.fragment_id() == -1) {
-            handle_eot();
+            handle_eot(eot);  // Pass the eot object to check tier_id
             return;
         }
 
@@ -515,10 +516,73 @@ private:
         }
     }
 
-    void handle_eot() {
-        std::cout << "Received EOT. Starting retransmission check..." << std::endl;
+    void handle_eot(const DATA::Fragment& eot) {
+        int32_t tier_id = eot.tier_id();
+        
+        if (tier_id == -1) {
+            std::cout << "Received final EOT. Starting retransmission check..." << std::endl;
+            transmission_complete_ = true;
+            send_retransmission_request();
+            return;
+        } else if (tier_id == -2) {
+            std::cout << "Received missing chunks check EOT. Outputting missing chunks report..." << std::endl;
+            output_missing_chunks_per_tier();
+            transmission_complete_ = true;
+            return;
+        }
+        
+        // If we get here, it's a regular tier EOT (shouldn't happen with current sender)
+        std::cout << "Received EOT for tier " << tier_id << std::endl;
         transmission_complete_ = true;
-        send_retransmission_request();
+    }
+
+    void output_missing_chunks_per_tier() {
+        std::cout << "\n=== Missing Chunks Per Tier Report ===" << std::endl;
+        
+        std::map<int32_t, int> missing_chunks_per_tier;
+        
+        // Count missing chunks for each tier
+        for (const auto& [var_name, var_info] : variablesMetadata) {
+            for (const auto& [tier_id, tier_info] : var_info.tiers) {
+                int missing_count = 0;
+                
+                // If variable doesn't exist or tier doesn't exist, all chunks are missing
+                if (variables.find(var_name) == variables.end() || 
+                    variables[var_name].tiers.find(tier_id) == variables[var_name].tiers.end()) {
+                    missing_count = tier_info.expected_chunks.size();
+                } else {
+                    const auto& tier = variables[var_name].tiers.at(tier_id);
+                    
+                    // Check each expected chunk
+                    for (uint32_t expected_chunk_id : tier_info.expected_chunks) {
+                        if (tier.chunks.find(expected_chunk_id) == tier.chunks.end()) {
+                            // Chunk is missing completely
+                            missing_count++;
+                        } else {
+                            // Check if chunk has enough fragments
+                            const auto& chunk = tier.chunks.at(expected_chunk_id);
+                            int32_t k = tier_info.k;
+                            
+                            if (chunk.data_fragments.size() + chunk.parity_fragments.size() < static_cast<size_t>(k)) {
+                                missing_count++;
+                            }
+                        }
+                    }
+                }
+                
+                missing_chunks_per_tier[tier_id] += missing_count;
+            }
+        }
+        
+        // Output the results
+        int total_missing = 0;
+        for (const auto& [tier_id, missing_count] : missing_chunks_per_tier) {
+            std::cout << "Tier " << tier_id << ": " << missing_count << " missing chunks" << std::endl;
+            total_missing += missing_count;
+        }
+        
+        std::cout << "Total missing chunks across all tiers: " << total_missing << std::endl;
+        std::cout << "======================================\n" << std::endl;
     }
 
     void handle_metadata(const DATA::Metadata& metadata) {
@@ -528,9 +592,15 @@ private:
             std::cout << "Variable: " << var.var_name() << std::endl;
             for (const auto& tier : var.tiers()) {
                 auto& tier_info = var_info.tiers[tier.tier_id()];
-                tier_info.k = tier.k();
+                
+                // Extract k value from the first chunk if available
+                if (tier.chunk_ids_size() > 0) {
+                    // Since metadata doesn't contain k directly, we'll set it when we receive fragments
+                    tier_info.k = 32; // Default value, will be updated when fragments arrive
+                }
+                
                 tier_info.expected_chunks.insert(tier.chunk_ids().begin(), tier.chunk_ids().end());
-                std::cout << "  Tier: " << tier.tier_id() << " k=" << tier.k() << " chunks=" << tier.chunk_ids_size() << std::endl;
+                std::cout << "  Tier: " << tier.tier_id() << " chunks=" << tier.chunk_ids_size() << std::endl;
             }
         }
     }
