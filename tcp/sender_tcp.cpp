@@ -17,7 +17,7 @@
 #include <chrono>
 
 // #define IPADDRESS "127.0.0.1" // "192.168.1.64"
-#define IPADDRESS "128.110.217.138"
+#define IPADDRESS "130.127.133.133"
 #define UDP_PORT 12345
 // #define IPADDRESS "10.51.197.229"
 // #define UDP_PORT 34565
@@ -42,6 +42,10 @@ private:
 
     std::deque<std::shared_ptr<std::string>> write_queue_;
     bool is_writing_ = false;
+
+    std::map<uint32_t, std::chrono::steady_clock::time_point> tier_start_times_;
+    std::map<uint32_t, std::chrono::steady_clock::time_point> tier_end_times_;
+    std::map<uint32_t, double> tier_durations_; // In seconds
 
     void set_timestamp(DATA::Fragment& fragment) {
         // uint64_t timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -95,47 +99,61 @@ public:
 
         fragments_ = fragments;
         
-        // Send each fragment via TCP
-        for (auto& fragment : fragments_) {
-            fragment.set_timestamp(
-                std::chrono::system_clock::now().time_since_epoch().count()
-            );
-            // fragment.set_frag(std::string(4116 - fragment.ByteSizeLong(), '\0'));
-            fragment.set_frag(std::string(4096 - fragment.ByteSizeLong(), '\0'));
-            // fragment.set_frag(std::string(4096, '\0'));
-
-            std::string serialized_fragment;
-            fragment.SerializeToString(&serialized_fragment);
-
-            // if (serialized_fragment.size() < 4096) {
-            //     serialized_fragment.resize(4096, '\0');
-            // } else if (serialized_fragment.size() > 4096) {
-            //     serialized_fragment.resize(4096);
-            // }
+        // Group fragments by tier for timing tracking
+        std::map<uint32_t, std::vector<DATA::Fragment>> fragments_by_tier;
+        for (const auto& fragment : fragments) {
+            fragments_by_tier[fragment.tier_id()].push_back(fragment);
+        }
+        
+        // Send fragments tier by tier and track timing
+        for (auto& [tier_id, tier_fragments] : fragments_by_tier) {
+            std::cout << "\nStarting transmission of tier " << tier_id 
+                    << " (" << tier_fragments.size() << " fragments)" << std::endl;
             
-            uint32_t message_size = serialized_fragment.size();
-            std::cout << "Message size: " << message_size << std::endl;
-            try {
-                // boost::asio::write(tcp_socket_, boost::asio::buffer(&message_size, sizeof(message_size)));
-                // boost::asio::write(tcp_socket_, boost::asio::buffer(serialized_fragment));
-                std::vector<boost::asio::const_buffer> buffers;
-                buffers.push_back(boost::asio::buffer(&message_size, sizeof(message_size)));
-                buffers.push_back(boost::asio::buffer(serialized_fragment));
-                boost::asio::write(tcp_socket_, buffers);
+            // Record tier start time
+            tier_start_times_[tier_id] = std::chrono::steady_clock::now();
+            
+            // Send all fragments for this tier
+            for (auto& fragment : tier_fragments) {
+                fragment.set_timestamp(
+                    std::chrono::system_clock::now().time_since_epoch().count()
+                );
+                fragment.set_frag(std::string(4096 - fragment.ByteSizeLong(), '\0'));
 
+                std::string serialized_fragment;
+                fragment.SerializeToString(&serialized_fragment);
                 
-                total_bytes_sent_ += sizeof(message_size) + serialized_fragment.size();
-                packetsSentTotal++;
+                uint32_t message_size = serialized_fragment.size();
+                
+                try {
+                    std::vector<boost::asio::const_buffer> buffers;
+                    buffers.push_back(boost::asio::buffer(&message_size, sizeof(message_size)));
+                    buffers.push_back(boost::asio::buffer(serialized_fragment));
+                    boost::asio::write(tcp_socket_, buffers);
 
-                std::cout << "Sent fragment: " << fragment.var_name() 
-                         << " tier=" << fragment.tier_id() 
-                         << " chunk=" << fragment.chunk_id() 
-                         << " frag=" << fragment.fragment_id() << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "Error sending fragment: " << e.what() << std::endl;
-                tcp_connected_ = false;
-                return;
+                    total_bytes_sent_ += sizeof(message_size) + serialized_fragment.size();
+                    packetsSentTotal++;
+
+                    // Optional: reduce console output for performance
+                    if (packetsSentTotal % 1000 == 0) {
+                        std::cout << "Sent " << packetsSentTotal << " fragments..." << std::endl;
+                    }
+                } catch (const std::exception& e) {
+                    std::cerr << "Error sending fragment: " << e.what() << std::endl;
+                    tcp_connected_ = false;
+                    return;
+                }
             }
+            
+            // Record tier end time
+            tier_end_times_[tier_id] = std::chrono::steady_clock::now();
+            auto tier_duration = std::chrono::duration_cast<std::chrono::microseconds>(
+                tier_end_times_[tier_id] - tier_start_times_[tier_id]);
+            tier_durations_[tier_id] = tier_duration.count() / 1000000.0; // Convert to seconds
+            
+            std::cout << "Completed tier " << tier_id << " in " 
+                    << std::fixed << std::setprecision(3) 
+                    << tier_durations_[tier_id] << " seconds" << std::endl;
         }
 
         // Send completion marker (empty fragment with fragment_id = -1)
@@ -154,6 +172,7 @@ public:
             tcp_connected_ = false;
         }
 
+        // Calculate and display overall statistics
         auto end_time_ = std::chrono::steady_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time_ - start_time_);
         double duration_seconds = duration.count() / 1000000.0;
@@ -162,13 +181,74 @@ public:
         std::chrono::duration<double> elapsed = end_time_ - start_time_;
         auto rate = packetsSentTotal / elapsed.count();
 
-        std::cout << "\nTransmission Statistics:" << std::endl;
-        std::cout << "Duration: " << duration_seconds << " seconds" << std::endl;
-        std::cout << "Duration: " << duration_ms << " ms" << std::endl;
+        // Output tier transmission times
+        output_tier_transmission_times();
+
+        std::cout << "\nOverall Transmission Statistics:" << std::endl;
+        std::cout << "Total Duration: " << duration_seconds << " seconds" << std::endl;
+        std::cout << "Total Duration: " << duration_ms << " ms" << std::endl;
         std::cout << "Total bytes sent: " << total_bytes_sent_ << " bytes" << std::endl;
         std::cout << "Throughput: " << throughput_mbps << " Mbps" << std::endl;
         std::cout << "Fragment count: " << fragments_.size() << std::endl;
         std::cout << "Rate: " << rate << " packets/second" << std::endl;
+    }
+
+    void output_tier_transmission_times() {
+        std::cout << "\n=== Tier Transmission Times ===" << std::endl;
+        
+        double total_tier_time = 0.0;
+        size_t total_fragments_all_tiers = 0;
+        
+        // Sort tiers by ID for ordered output
+        std::vector<uint32_t> sorted_tier_ids;
+        for (const auto& [tier_id, _] : tier_durations_) {
+            sorted_tier_ids.push_back(tier_id);
+        }
+        std::sort(sorted_tier_ids.begin(), sorted_tier_ids.end());
+        
+        for (uint32_t tier_id : sorted_tier_ids) {
+            double duration = tier_durations_[tier_id];
+            
+            // Count fragments in this tier
+            size_t fragments_in_tier = 0;
+            for (const auto& fragment : fragments_) {
+                if (fragment.tier_id() == tier_id) {
+                    fragments_in_tier++;
+                }
+            }
+            
+            // Calculate tier-specific throughput
+            size_t tier_bytes = fragments_in_tier * 4096; // Approximate fragment size
+            double tier_throughput_mbps = (tier_bytes * 8.0 / 1000000.0) / duration;
+            
+            std::cout << "Tier " << tier_id << ": " 
+                      << std::fixed << std::setprecision(3) << duration << " seconds"
+                      << " (" << fragments_in_tier << " fragments, "
+                      << std::fixed << std::setprecision(2) << tier_throughput_mbps << " Mbps)"
+                      << std::endl;
+            
+            total_tier_time += duration;
+            total_fragments_all_tiers += fragments_in_tier;
+        }
+        
+        std::cout << "Total tier transmission time: " 
+                  << std::fixed << std::setprecision(3) << total_tier_time << " seconds" << std::endl;
+        std::cout << "Total fragments: " << total_fragments_all_tiers << std::endl;
+        std::cout << "================================\n" << std::endl;
+    }
+
+    void print_tier_fragment_distribution() {
+        std::map<uint32_t, size_t> fragments_per_tier;
+        
+        for (const auto& fragment : fragments_) {
+            fragments_per_tier[fragment.tier_id()]++;
+        }
+        
+        std::cout << "\nFragment distribution per tier:" << std::endl;
+        for (const auto& [tier_id, count] : fragments_per_tier) {
+            std::cout << "Tier " << tier_id << ": " << count << " fragments" << std::endl;
+        }
+        std::cout << std::endl;
     }
 
     void send_metadata(const std::vector<DATA::Fragment>& fragments) {
@@ -460,10 +540,11 @@ int main()
     try {
         std::cout << "Sending fragments via TCP" << std::endl;
         boost::asio::io_context io_context;
-        // Sender sender(io_context, "149.165.153.98", 12346);
         Sender sender(io_context, IPADDRESS, TCP_PORT);
         
-        // sender.send_metadata(fragments);
+        // Optional: show fragment distribution before sending
+        // sender.print_tier_fragment_distribution();
+        
         sender.send_fragments(fragments);
         io_context.run();
     }

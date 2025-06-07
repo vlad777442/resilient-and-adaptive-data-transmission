@@ -18,7 +18,7 @@
 #include <algorithm>
 #include <numeric>
 
-#define IPADDRESS "128.110.217.138" 
+#define IPADDRESS "130.127.133.133" 
 #define UDP_PORT 60001
 #define TCP_PORT 12346
 // #define SLEEP_DURATION 1000000 
@@ -29,7 +29,7 @@
 #define T_RETRANS 0.01
 #define N 32
 #define DEFAULT_M 16
-#define TIME_CONSTR 100
+#define TIME_CONSTR 140
 
 
 using boost::asio::ip::tcp;
@@ -325,6 +325,10 @@ public:
         tcp_connected_ = false;
     }
 
+    void request_missing_chunks_report() {
+        send_missing_chunks_check_eot();
+    }
+
     void send_fragments(FragmentStore& fragments) {
         if (!tcp_connected_) {
             std::cerr << "Error: TCP connection not established" << std::endl;
@@ -504,7 +508,7 @@ private:
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_transmission_time_);
         std::cout << "End of Transmission. Duration: " << duration.count() << " ms" << std::endl;
 
-        std::this_thread::sleep_for(std::chrono::nanoseconds(100)); // 0.01 milliseconds
+        // std::this_thread::sleep_for(std::chrono::nanoseconds(100));
         timer_.expires_after(std::chrono::nanoseconds(SLEEP_DURATION));
         timer_.wait();
         if (!tcp_connected_) {
@@ -514,6 +518,8 @@ private:
 
         DATA::Fragment eot;
         eot.set_fragment_id(-1);
+        eot.set_tier_id(-1);  // Use -1 for regular final EOT
+        
         std::string serialized_eot;
         eot.SerializeToString(&serialized_eot);
         
@@ -522,10 +528,40 @@ private:
         try {
             boost::asio::write(tcp_socket_, boost::asio::buffer(&message_size, sizeof(message_size)));
             boost::asio::write(tcp_socket_, boost::asio::buffer(serialized_eot));
-            std::cout << "Sent EOT marker via TCP" << std::endl;
-            total_bytes_sent_ += sizeof(serialized_eot.size()) + serialized_eot.size();
+            std::cout << "Sent final EOT marker via TCP" << std::endl;
+            total_bytes_sent_ += serialized_eot.size();
         } catch (const std::exception& e) {
             std::cerr << "Error sending EOT: " << e.what() << std::endl;
+            tcp_connected_ = false;
+        }
+    }
+
+    void send_missing_chunks_check_eot() {
+        if (!tcp_connected_) {
+            std::cerr << "Error: TCP connection not established" << std::endl;
+            return;
+        }
+
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start_transmission_time_);
+        std::cout << "Sending missing chunks check EOT. Duration: " << duration.count() << " ms" << std::endl;
+
+        DATA::Fragment eot;
+        eot.set_fragment_id(-1);
+        eot.set_tier_id(-2);  // Use -2 to trigger missing chunks check
+        
+        std::string serialized_eot;
+        eot.SerializeToString(&serialized_eot);
+        
+        uint32_t message_size = serialized_eot.size();
+        
+        try {
+            boost::asio::write(tcp_socket_, boost::asio::buffer(&message_size, sizeof(message_size)));
+            boost::asio::write(tcp_socket_, boost::asio::buffer(serialized_eot));
+            std::cout << "Sent missing chunks check EOT marker via TCP" << std::endl;
+            total_bytes_sent_ += serialized_eot.size();
+        } catch (const std::exception& e) {
+            std::cerr << "Error sending missing chunks check EOT: " << e.what() << std::endl;
             tcp_connected_ = false;
         }
     }
@@ -654,27 +690,24 @@ private:
         int lost_fragments = expected_fragments - total_fragments;
         
         uint64_t time_window = report.time_window(); 
-        // std::cout << report.time_window() << std::endl;
-        // double lam = calculate_lambda(lost_fragments, static_cast<double>(time_window));
-        // std::cout << "Lambda: " << lam  << " Lost fragments: " << lost_fragments << " Time window: " << time_window << std::endl;
         double lam = report.lambda();
 
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_transmission_time_);
         
         double remaining_time = t_threshold - (duration.count() / 1000.0); // Convert milliseconds to seconds
         if (remaining_time < 0) {
-            std::cout << "Remaining time is negative. Stopping transmission." << std::endl;
-            send_eot();
-            // stop_transmission();
-            // return;
+            std::cout << "Time threshold exceeded. Stopping transmission." << std::endl;
+            send_missing_chunks_check_eot();
+            should_stop_ = true;
+            
+            // Send special EOT for time threshold exceeded
+            send_time_threshold_eot();
+            return;
         }
-        // Call the calculator with the remaining time
+        
+        // Create TransmissionTimeCalculator with remaining time as threshold
         TransmissionTimeCalculator calculator(tier_sizes, FRAGMENT_SIZE, T_TRANSMISSION, 
-                                              T_RETRANS, lam, RATE_FRAG, N, remaining_time);
-        for (auto& size: tier_sizes) {
-            std::cout << size << std::endl;
-        }
-        std::cout << "Remaining time: " << remaining_time << std::endl;
+                                            T_RETRANS, lam, RATE_FRAG, N, remaining_time);
 
         auto [min_time, best_configuration] = calculator.find_min_time_configuration();
 
@@ -682,7 +715,6 @@ private:
         update_ec_parameters(tier_id, best_configuration[tier_id]);
 
         // Output the result
-        // std::cout << "Variable Name: " << var_name << std::endl;
         std::cout << "      Tier ID: " << tier_id << std::endl;
         std::cout << "      Updated m parameter to: " << best_configuration[tier_id] << std::endl;
         std::cout << "      Total Fragments: " << total_fragments << std::endl;
@@ -690,6 +722,45 @@ private:
         std::cout << "      Lost Fragments: " << lost_fragments << std::endl;
     }
 
+    void send_time_threshold_eot() {
+        if (!tcp_connected_) {
+            std::cerr << "Error: TCP connection not established" << std::endl;
+            return;
+        }
+
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start_transmission_time_);
+        std::cout << "Time threshold exceeded. Sending time EOT. Duration: " << duration.count() << " ms" << std::endl;
+
+        DATA::Fragment eot;
+        eot.set_fragment_id(-1);
+        eot.set_tier_id(-2);  // Use -2 to indicate time threshold exceeded
+        
+        std::string serialized_eot;
+        eot.SerializeToString(&serialized_eot);
+        
+        uint32_t message_size = serialized_eot.size();
+        
+        try {
+            boost::asio::write(tcp_socket_, boost::asio::buffer(&message_size, sizeof(message_size)));
+            boost::asio::write(tcp_socket_, boost::asio::buffer(serialized_eot));
+            std::cout << "Sent time threshold exceeded EOT marker via TCP" << std::endl;
+            total_bytes_sent_ += serialized_eot.size();
+            
+            transmission_complete_ = true;
+            
+            // Schedule transmission stop after a brief delay
+            timer_.expires_after(std::chrono::milliseconds(100));
+            timer_.async_wait([this](const boost::system::error_code& ec) {
+                if (!ec) {
+                    stop_transmission();
+                }
+            });
+        } catch (const std::exception& e) {
+            std::cerr << "Error sending time threshold EOT: " << e.what() << std::endl;
+            tcp_connected_ = false;
+        }
+    }
 };
 
 void setupCommonFields(DATA::Fragment& fragment) {

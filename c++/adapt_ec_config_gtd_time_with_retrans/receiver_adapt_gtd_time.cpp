@@ -502,39 +502,51 @@ private:
         int32_t tier_id = eot.tier_id();
         
         if (tier_id == -1) {
-            // This is the final EOT
             std::cout << "Received final EOT. Starting retransmission check..." << std::endl;
             transmission_complete_ = true;
             send_retransmission_request();
             return;
+        } else if (tier_id == -2) {
+            std::cout << "Received final EOT (time threshold exceeded). Transmission finished." << std::endl;
+            transmission_complete_ = true;
+            return;
         }
         
-        // This is a tier-specific EOT
         std::cout << "Received EOT for tier " << tier_id << ". Checking tier completeness..." << std::endl;
         
-        // Check if tier is complete
-        bool tier_complete = check_tier_completeness(tier_id);
-        
-        if (tier_complete) {
-            // Send TierCompleteAck
-            send_tier_complete_ack(tier_id);
-        } else {
-            // Request retransmission for missing chunks in this tier
-            send_tier_retransmission_request(tier_id);
-        }
+        // ✅ Add small delay to allow final fragments to be processed
+        auto timer = std::make_shared<boost::asio::steady_timer>(io_context_);
+        timer->expires_after(std::chrono::milliseconds(100));
+        timer->async_wait([this, tier_id, timer](const boost::system::error_code& ec) {
+            if (!ec) {
+                bool tier_complete = check_tier_completeness(tier_id);
+                
+                if (tier_complete) {
+                    send_tier_complete_ack(tier_id);
+                } else {
+                    send_tier_retransmission_request(tier_id);
+                }
+            }
+        });
     }
 
     bool check_tier_completeness(int32_t tier_id) {
         for (const auto& [var_name, var_info] : variablesMetadata) {
             if (var_info.tiers.find(tier_id) == var_info.tiers.end()) {
-                // This variable doesn't have this tier
-                continue;
+                continue; // This variable doesn't have this tier
             }
             
             const auto& tier_info = var_info.tiers.at(tier_id);
-            const auto& variable = variables[var_name];
             
-            // If this variable doesn't have this tier yet, tier is not complete
+            // ✅ Check if variable exists first
+            if (variables.find(var_name) == variables.end()) {
+                std::cout << "Variable " << var_name << " not yet received for tier " << tier_id << std::endl;
+                return false;
+            }
+            
+            const auto& variable = variables.at(var_name);
+            
+            // ✅ Check if tier exists
             if (variable.tiers.find(tier_id) == variable.tiers.end()) {
                 std::cout << "Variable " << var_name << " missing tier " << tier_id << std::endl;
                 return false;
@@ -544,32 +556,23 @@ private:
             
             // Check all expected chunks
             for (uint32_t expected_chunk_id : tier_info.expected_chunks) {
-                std::cout << "Checking chunk " << expected_chunk_id << " in tier " << tier_id << std::endl;
-                // If chunk is missing, tier is not complete
                 if (tier.chunks.find(expected_chunk_id) == tier.chunks.end()) {
                     std::cout << "Missing chunk " << expected_chunk_id << " in tier " << tier_id << std::endl;
                     return false;
                 }
                 
-                // Check if chunk has enough fragments
                 const auto& chunk = tier.chunks.at(expected_chunk_id);
-                int32_t k;
-                if (!chunk.data_fragments.empty()) {
-                    k = chunk.data_fragments.begin()->second.k;
-                } else {
-                    k = chunk.parity_fragments.begin()->second.k;
-                }
+                int32_t k = static_cast<int32_t>(tier_info.k); // ✅ Use metadata k value
                 
                 if (chunk.data_fragments.size() + chunk.parity_fragments.size() < static_cast<size_t>(k)) {
                     std::cout << "Chunk " << expected_chunk_id << " in tier " << tier_id 
-                              << " has only " << (chunk.data_fragments.size() + chunk.parity_fragments.size()) 
-                              << " fragments, needs " << k << std::endl;
+                            << " has only " << (chunk.data_fragments.size() + chunk.parity_fragments.size()) 
+                            << " fragments, needs " << k << std::endl;
                     return false;
                 }
             }
         }
         
-        // If we got here, all chunks in the tier are complete
         std::cout << "Tier " << tier_id << " is complete!" << std::endl;
         return true;
     }

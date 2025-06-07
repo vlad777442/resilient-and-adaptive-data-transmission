@@ -1,149 +1,224 @@
 package main
 
 import (
-	"context"
-	"crypto/tls"
-	"encoding/binary"
-	"flag"
-	"fmt"
-	"io"
-	"os"
-	"path/filepath"
-	"time"
+    "context"
+    "crypto/tls"
+    "encoding/binary"
+    "flag"
+    "fmt"
+    "io"
+    "os"
+    "path/filepath"
+    "time"
 
-	"github.com/quic-go/quic-go"
+    "github.com/quic-go/quic-go"
 )
 
 const bufSize = 1024 * 16
 
+// Add this structure to store file transfer information
+type FileTransferInfo struct {
+    FilePath     string
+    FileName     string
+    Size         int64
+    Duration     time.Duration
+    Throughput   float64
+    StartTime    time.Time
+    EndTime      time.Time
+}
+
 func main() {
-	server := flag.String("server", "localhost:4242", "Server address (host:port)")
-	inputPath := flag.String("input", "", "Path to file(s) to send (can be a directory or specific file)")
-	verbose := flag.Bool("verbose", false, "Show detailed transfer statistics")
-	flag.Parse()
+    server := flag.String("server", "localhost:4242", "Server address (host:port)")
+    inputPath := flag.String("input", "", "Path to file(s) to send (can be a directory or specific file)")
+    verbose := flag.Bool("verbose", false, "Show detailed transfer statistics")
+    flag.Parse()
 
-	if *inputPath == "" {
-		fmt.Println("Please specify a file or directory with -input")
-		return
-	}
+    if *inputPath == "" {
+        fmt.Println("Please specify a file or directory with -input")
+        return
+    }
 
-	// Check if the input path exists
-	inputInfo, err := os.Stat(*inputPath)
-	if err != nil {
-		fmt.Printf("Failed to get info for input path: %v\n", err)
-		return
-	}
+    // Check if the input path exists
+    inputInfo, err := os.Stat(*inputPath)
+    if err != nil {
+        fmt.Printf("Failed to get info for input path: %v\n", err)
+        return
+    }
 
-	// Build a list of files to transfer
-	var filesToTransfer []string
-	if inputInfo.IsDir() {
-		// If directory, get all files in the directory
-		entries, err := os.ReadDir(*inputPath)
-		if err != nil {
-			fmt.Printf("Failed to read directory: %v\n", err)
-			return
-		}
+    // Build a list of files to transfer
+    var filesToTransfer []string
+    if inputInfo.IsDir() {
+        // If directory, get all files in the directory
+        entries, err := os.ReadDir(*inputPath)
+        if err != nil {
+            fmt.Printf("Failed to read directory: %v\n", err)
+            return
+        }
 
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				filesToTransfer = append(filesToTransfer, filepath.Join(*inputPath, entry.Name()))
-			}
-		}
+        for _, entry := range entries {
+            if !entry.IsDir() {
+                filesToTransfer = append(filesToTransfer, filepath.Join(*inputPath, entry.Name()))
+            }
+        }
 
-		if len(filesToTransfer) == 0 {
-			fmt.Println("No files found in the specified directory")
-			return
-		}
-	} else {
-		// If file, just add it to the list
-		filesToTransfer = append(filesToTransfer, *inputPath)
-	}
+        if len(filesToTransfer) == 0 {
+            fmt.Println("No files found in the specified directory")
+            return
+        }
+    } else {
+        // If file, just add it to the list
+        filesToTransfer = append(filesToTransfer, *inputPath)
+    }
 
-	// Configure TLS
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true, // Skip certificate verification in this example
-		NextProtos:         []string{"quic-file-transfer"},
-	}
+    // Configure TLS
+    tlsConfig := &tls.Config{
+        InsecureSkipVerify: true, // Skip certificate verification in this example
+        NextProtos:         []string{"quic-file-transfer"},
+    }
 
-	// Create a context for the connection
-	ctx := context.Background()
+    // Create a context for the connection
+    ctx := context.Background()
 
-	// Connect to the server
-	conn, err := quic.DialAddr(
-		ctx,
-		*server,
-		tlsConfig,
-		&quic.Config{},
-	)
-	if err != nil {
-		fmt.Printf("Failed to connect to server: %v\n", err)
-		return
-	}
-	defer conn.CloseWithError(0, "client closed connection")
-	fmt.Printf("Connected to server: %s\n", *server)
+    // Connect to the server
+    conn, err := quic.DialAddr(
+        ctx,
+        *server,
+        tlsConfig,
+        &quic.Config{},
+    )
+    if err != nil {
+        fmt.Printf("Failed to connect to server: %v\n", err)
+        return
+    }
+    defer conn.CloseWithError(0, "client closed connection")
+    fmt.Printf("Connected to server: %s\n", *server)
 
-	totalBytes := int64(0)
-	totalStartTime := time.Now()
-	transferTimes := make([]time.Duration, 0, len(filesToTransfer))
+    totalBytes := int64(0)
+    totalStartTime := time.Now()
+    
+    // Change this to store detailed file transfer information
+    fileTransfers := make([]FileTransferInfo, 0, len(filesToTransfer))
 
-	// Send each file
-	for i, filePath := range filesToTransfer {
-		fmt.Printf("[%d/%d] Processing file: %s\n", i+1, len(filesToTransfer), filePath)
+    // Send each file
+    for i, filePath := range filesToTransfer {
+        fmt.Printf("[%d/%d] Processing file: %s\n", i+1, len(filesToTransfer), filePath)
 
-		fileStartTime := time.Now()
-		fileInfo, _ := os.Stat(filePath)
-		fileSize := fileInfo.Size()
+        fileInfo, _ := os.Stat(filePath)
+        fileSize := fileInfo.Size()
+        
+        // Get file transfer info instead of just duration
+        transferInfo, err := sendFileWithTiming(ctx, conn, filePath, *verbose)
+        if err != nil {
+            fmt.Printf("Error sending file %s: %v\n", filePath, err)
+            continue
+        }
 
-		if err := sendFile(ctx, conn, filePath, *verbose); err != nil {
-			fmt.Printf("Error sending file %s: %v\n", filePath, err)
-			continue
-		}
+        fileTransfers = append(fileTransfers, transferInfo)
+        totalBytes += fileSize
 
-		fileDuration := time.Since(fileStartTime)
-		transferTimes = append(transferTimes, fileDuration)
-		totalBytes += fileSize
+        if *verbose {
+            fmt.Printf("  File transfer time: %v (%.2f MB/s)\n", transferInfo.Duration, transferInfo.Throughput)
+        }
+    }
 
-		if *verbose {
-			fileRate := float64(fileSize) / 1024 / 1024 / fileDuration.Seconds()
-			fmt.Printf("  File transfer time: %v (%.2f MB/s)\n", fileDuration, fileRate)
-		}
-	}
+    totalDuration := time.Since(totalStartTime)
+    overallRate := float64(totalBytes) / 1024 / 1024 / totalDuration.Seconds()
 
-	totalDuration := time.Since(totalStartTime)
-	rate := float64(totalBytes) / 1024 / 1024 / totalDuration.Seconds()
+    // Output detailed file transfer times
+    outputFileTransferTimes(fileTransfers, totalBytes, totalDuration, overallRate)
+}
 
-	// Calculate min, max, and average transfer durations
-	var minTime, maxTime, totalTime time.Duration
-	if len(transferTimes) > 0 {
-		minTime = transferTimes[0]
-		maxTime = transferTimes[0]
-		totalTime = 0
+func sendFileWithTiming(ctx context.Context, conn quic.Connection, filePath string, verbose bool) (FileTransferInfo, error) {
+    startTime := time.Now()
+    
+    // Get file info
+    fileInfo, err := os.Stat(filePath)
+    if err != nil {
+        return FileTransferInfo{}, fmt.Errorf("failed to get file info: %v", err)
+    }
 
-		for _, t := range transferTimes {
-			totalTime += t
-			if t < minTime {
-				minTime = t
-			}
-			if t > maxTime {
-				maxTime = t
-			}
-		}
-	}
+    // Send the file
+    err = sendFile(ctx, conn, filePath, verbose)
+    
+    endTime := time.Now()
+    duration := endTime.Sub(startTime)
+    
+    // Calculate throughput
+    throughput := float64(fileInfo.Size()) / 1024 / 1024 / duration.Seconds()
+    
+    transferInfo := FileTransferInfo{
+        FilePath:   filePath,
+        FileName:   filepath.Base(filePath),
+        Size:       fileInfo.Size(),
+        Duration:   duration,
+        Throughput: throughput,
+        StartTime:  startTime,
+        EndTime:    endTime,
+    }
+    
+    return transferInfo, err
+}
 
-	// Print summary
-	fmt.Printf("\n=== Transfer Summary ===\n")
-	fmt.Printf("Files transferred: %d\n", len(transferTimes))
-	fmt.Printf("Total data: %.2f MB\n", float64(totalBytes)/(1024*1024))
-	fmt.Printf("Total time: %v\n", totalDuration)
-	fmt.Printf("Overall throughput: %.2f MB/s\n", rate)
+func outputFileTransferTimes(fileTransfers []FileTransferInfo, totalBytes int64, totalDuration time.Duration, overallRate float64) {
+    fmt.Printf("\n=== Individual File Transfer Times ===\n")
+    
+    var minTime, maxTime, totalTime time.Duration
+    var minThroughput, maxThroughput, totalThroughput float64
+    
+    if len(fileTransfers) > 0 {
+        minTime = fileTransfers[0].Duration
+        maxTime = fileTransfers[0].Duration
+        minThroughput = fileTransfers[0].Throughput
+        maxThroughput = fileTransfers[0].Throughput
+        totalTime = 0
+        totalThroughput = 0
 
-	if len(transferTimes) > 0 {
-		avgTime := totalTime / time.Duration(len(transferTimes))
-		fmt.Printf("\nFile transfer statistics:\n")
-		fmt.Printf("  Min time: %v\n", minTime)
-		fmt.Printf("  Max time: %v\n", maxTime)
-		fmt.Printf("  Avg time: %v\n", avgTime)
-	}
+        for i, transfer := range fileTransfers {
+            fmt.Printf("File %d: %s\n", i+1, transfer.FileName)
+            fmt.Printf("  Size: %.2f MB\n", float64(transfer.Size)/(1024*1024))
+            fmt.Printf("  Time: %v\n", transfer.Duration)
+            fmt.Printf("  Throughput: %.2f MB/s\n", transfer.Throughput)
+            fmt.Printf("  Start: %s\n", transfer.StartTime.Format("15:04:05.000"))
+            fmt.Printf("  End: %s\n", transfer.EndTime.Format("15:04:05.000"))
+            fmt.Println()
+            
+            // Update statistics
+            totalTime += transfer.Duration
+            totalThroughput += transfer.Throughput
+            
+            if transfer.Duration < minTime {
+                minTime = transfer.Duration
+            }
+            if transfer.Duration > maxTime {
+                maxTime = transfer.Duration
+            }
+            if transfer.Throughput < minThroughput {
+                minThroughput = transfer.Throughput
+            }
+            if transfer.Throughput > maxThroughput {
+                maxThroughput = transfer.Throughput
+            }
+        }
+    }
+
+    // Print summary statistics
+    fmt.Printf("=== Transfer Summary ===\n")
+    fmt.Printf("Files transferred: %d\n", len(fileTransfers))
+    fmt.Printf("Total data: %.2f MB\n", float64(totalBytes)/(1024*1024))
+    fmt.Printf("Total time: %v\n", totalDuration)
+    fmt.Printf("Overall throughput: %.2f MB/s\n", overallRate)
+
+    if len(fileTransfers) > 0 {
+        avgTime := totalTime / time.Duration(len(fileTransfers))
+        avgThroughput := totalThroughput / float64(len(fileTransfers))
+        
+        fmt.Printf("\nFile transfer statistics:\n")
+        fmt.Printf("  Time - Min: %v, Max: %v, Avg: %v\n", minTime, maxTime, avgTime)
+        fmt.Printf("  Throughput - Min: %.2f MB/s, Max: %.2f MB/s, Avg: %.2f MB/s\n", 
+            minThroughput, maxThroughput, avgThroughput)
+    }
+    
+    fmt.Printf("================================\n")
 }
 
 func sendFile(ctx context.Context, conn quic.Connection, filePath string, verbose bool) error {

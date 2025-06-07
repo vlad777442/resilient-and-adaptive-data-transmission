@@ -18,7 +18,7 @@
 #include <algorithm>
 #include <numeric>
 
-#define IPADDRESS "10.51.197.229"
+#define IPADDRESS "130.127.133.133"
 #define UDP_PORT 60001
 #define TCP_PORT 12346
 // #define SLEEP_DURATION 1000000 
@@ -29,7 +29,7 @@
 #define T_RETRANS 0.01
 #define N 32
 #define DEFAULT_M 16
-#define TIME_CONSTR 300
+#define TIME_CONSTR 100
 
 
 using boost::asio::ip::tcp;
@@ -349,6 +349,7 @@ public:
         start_transmission_time_ = std::chrono::steady_clock::now();
         current_tier_ = 0;
         send_tier(current_tier_);
+
     }
 
     void send_tier(size_t tier_id) {
@@ -387,7 +388,14 @@ public:
         state->send_next = [this, strand, state, tier_id]() {
             if (state->fragment_queue.empty() || should_stop_) {
                 std::cout << "All fragments for tier " << tier_id << " sent" << std::endl;
-                send_tier_eot(tier_id);
+                // send_tier_eot(tier_id);
+                // Add delay before sending EOT to ensure all UDP fragments are transmitted
+                timer_.expires_after(std::chrono::milliseconds(200)); // Increased delay
+                timer_.async_wait([this, tier_id](const boost::system::error_code& ec) {
+                    if (!ec && !should_stop_) {
+                        send_tier_eot(tier_id);
+                    }
+                });
                 return;
             }
 
@@ -413,7 +421,7 @@ public:
             state->current_offset = 0;
 
             state->send_chunk = [this, strand, state]() {
-                if (state->current_offset >= state->current_serialized.size()) {
+                if (state->current_offset >= state->current_serialized.size() || should_stop_) {
                     boost::asio::post(strand, [state]() {
                         state->send_next();
                     });
@@ -428,21 +436,23 @@ public:
                     receiver_endpoint_,
                     boost::asio::bind_executor(strand, 
                         [this, state, chunk_size](boost::system::error_code ec, std::size_t /*length*/) {
-                            if (!ec) {
+                            if (!ec && !should_stop_) {
                                 total_bytes_sent_ += chunk_size;
                                 state->current_offset += chunk_size;
-                                std::this_thread::sleep_for(std::chrono::nanoseconds(100000));
+                                // std::this_thread::sleep_for(std::chrono::nanoseconds(100000));
                                 state->send_chunk();
-                            } else {
+                            } else if (ec && !should_stop_) {
                                 std::cerr << "Send error: " << ec.message() << std::endl;
                                 state->send_chunk();
                             }
+                            // If should_stop_ is true, don't continue sending
                         })
                 );
             };
 
             boost::asio::post(strand, state->send_chunk);
         };
+        std::this_thread::sleep_for(std::chrono::nanoseconds(10000));
 
         boost::asio::post(strand, state->send_next);
     }
@@ -494,16 +504,17 @@ public:
             boost::asio::buffer(serialized_fragment),
             receiver_endpoint_
         );
-        std::this_thread::sleep_for(std::chrono::nanoseconds(SLEEP_DURATION)); // 0.001 milliseconds   
+        // std::this_thread::sleep_for(std::chrono::nanoseconds(SLEEP_DURATION)); // 0.001 milliseconds   
         total_bytes_sent_ += sizeof(serialized_fragment.size()) + serialized_fragment.size();
     }
 
     void update_ec_parameters(uint32_t tier_id, int new_m) {
         std::lock_guard<std::mutex> lock(ec_params_mutex_);
         if (current_ec_params_m_.size() <= tier_id) {
-            current_ec_params_m_.resize(tier_id + 1);
+            current_ec_params_m_.resize(tier_id + 1, DEFAULT_M);
         }
         current_ec_params_m_[tier_id] = new_m;
+        std::cout << "Updated EC parameters for tier " << tier_id << ": m=" << new_m << ", k=" << (N - new_m) << std::endl;
     }
 
     void stop() {
@@ -540,7 +551,7 @@ private:
         }
     }
 
-    void send_final_eot() {
+    void send_final_eot(int tier_id = -1) {
         if (!tcp_connected_) {
             std::cerr << "Error: TCP connection not established" << std::endl;
             return;
@@ -552,7 +563,7 @@ private:
         
         DATA::Fragment eot;
         eot.set_fragment_id(-1);
-        eot.set_tier_id(-1);  // Use -1 to indicate final EOT
+        eot.set_tier_id(tier_id);  // Use -1 to indicate final EOT
         
         std::string serialized_eot;
         eot.SerializeToString(&serialized_eot);
@@ -684,20 +695,24 @@ private:
     }
 
     void handle_tcp_message(const std::vector<char>& buffer) {
+        std::cout << "Received TCP message of size " << buffer.size() << std::endl;
+        
         // First try to parse as RetransmissionRequest
         DATA::RetransmissionRequest request;
         if (request.ParseFromArray(buffer.data(), buffer.size()) && request.variables_size() > 0) {
+            std::cout << "Parsed as RetransmissionRequest with " << request.variables_size() << " variables" << std::endl;
             handle_request_data(request);
             return;
         }
-    
+
         // Then try to parse as FragmentsReport
         DATA::FragmentsReport report;
         if (report.ParseFromArray(buffer.data(), buffer.size()) && report.var_name().size() > 0) {
+            std::cout << "Parsed as FragmentsReport for " << report.var_name() << std::endl;
             handle_report(report);
             return;
         }
-    
+
         // Finally try to parse as TierCompleteAck
         DATA::TierCompleteAck ack;
         if (ack.ParseFromArray(buffer.data(), buffer.size()) && ack.tier_id() >= 0) {
@@ -729,9 +744,9 @@ private:
                 // Check retransmission limit
                 if (retransmission_count_per_tier_[requested_tier_id] >= max_retransmissions_per_tier_[requested_tier_id]) {
                     std::cout << "Maximum retransmissions (" 
-                              << max_retransmissions_per_tier_[requested_tier_id] 
-                              << ") reached for tier " << requested_tier_id 
-                              << ". Moving to next tier." << std::endl;
+                            << max_retransmissions_per_tier_[requested_tier_id] 
+                            << ") reached for tier " << requested_tier_id 
+                            << ". Moving to next tier." << std::endl;
                     
                     // If this is the current tier, move to the next tier
                     if (requested_tier_id == current_tier_) {
@@ -748,13 +763,19 @@ private:
 
                 // Process requests for any tier, not just current_tier_
                 if (requested_tier_id < fragments_.fragments.size()) {
+                    // Use a strand to ensure ordered execution
+                    auto strand = boost::asio::make_strand(io_context_);
+                    
                     for (int chunk_id : tier_request.chunk_ids()) {
                         if (chunk_id == -1) {
                             // Retransmit all chunks of requested tier
                             std::cout << "Retransmitting all chunks of tier " << requested_tier_id << std::endl;
-                            for (auto& chunk : fragments_.fragments[requested_tier_id]) {
+                            for (size_t c = 0; c < fragments_.fragments[requested_tier_id].size(); ++c) {
+                                auto& chunk = fragments_.fragments[requested_tier_id][c];
                                 for (auto& fragment : chunk) {
-                                    send_fragment(fragment);
+                                    boost::asio::post(strand, [this, fragment, requested_tier_id]() mutable {
+                                        retransmit_fragment(fragment, requested_tier_id);
+                                    });
                                 }
                             }
                             continue;
@@ -765,26 +786,73 @@ private:
                             fragments_.findChunk(requested_tier_id, chunk_id);
                         
                         if (matching_fragments_ptr) {
-                            std::cout << "Retransmitting chunk " << chunk_id << " of tier " << requested_tier_id << std::endl;
+                            // std::cout << "Retransmitting chunk " << chunk_id << " of tier " << requested_tier_id << std::endl;
                             for (auto& fragment : *matching_fragments_ptr) {
-                                send_fragment(fragment);
+                                boost::asio::post(strand, [this, fragment, requested_tier_id]() mutable {
+                                    retransmit_fragment(fragment, requested_tier_id);
+                                });
                             }
                         } else {
                             std::cerr << "Error: Could not find chunk " << chunk_id << " in tier " << requested_tier_id << std::endl;
                         }
                     }
+                    
+                    // Send EOT for the requested tier after retransmission with delay
+                    boost::asio::post(strand, [this, requested_tier_id]() {
+                        // Add a small delay to ensure all retransmissions are sent first
+                        timer_.expires_after(std::chrono::milliseconds(100));
+                        timer_.async_wait([this, requested_tier_id](const boost::system::error_code& ec) {
+                            if (!ec && requested_tier_id == current_tier_) {
+                                send_tier_eot(requested_tier_id);
+                            }
+                        });
+                    });
+                    
                 } else {
                     std::cerr << "Error: Requested tier " << requested_tier_id << " does not exist" << std::endl;
-                }
-                
-                // Send EOT for the requested tier after retransmission
-                if (requested_tier_id == current_tier_) {
-                    send_tier_eot(requested_tier_id);
                 }
             }
         }
     }
-    
+
+    void retransmit_fragment(DATA::Fragment fragment, uint32_t tier_id) {
+        // Update EC parameters for retransmitted fragment
+        int current_m;
+        {
+            std::lock_guard<std::mutex> lock(ec_params_mutex_);
+            current_m = (tier_id < current_ec_params_m_.size())
+                    ? current_ec_params_m_[tier_id] : DEFAULT_M;
+        }
+        fragment.set_k(N - current_m);
+        fragment.set_m(current_m);
+        
+        // Update timestamp
+        set_timestamp(fragment);
+        
+        // std::cout << "Retransmitting fragment: var=" << fragment.var_name() 
+        //         << " tier=" << fragment.tier_id() 
+        //         << " chunk=" << fragment.chunk_id() 
+        //         << " frag=" << fragment.fragment_id() << std::endl;
+        
+        // Serialize and send
+        std::string serialized_fragment;
+        fragment.SerializeToString(&serialized_fragment);
+        
+        // Use synchronous send for retransmissions to ensure they're sent immediately
+        try {
+            udp_socket_.send_to(
+                boost::asio::buffer(serialized_fragment),
+                receiver_endpoint_
+            );
+            total_bytes_sent_ += serialized_fragment.size();
+            
+            // Add small delay between retransmissions
+            std::this_thread::sleep_for(std::chrono::microseconds(1000));
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Retransmission send error: " << e.what() << std::endl;
+        }
+    }
 
     void handle_report(DATA::FragmentsReport report) {
         std::cout << "Received fragments report." << std::endl;
@@ -798,23 +866,32 @@ private:
         int lost_fragments = expected_fragments - total_fragments;
         
         uint64_t time_window = report.time_window(); 
-        // std::cout << report.time_window() << std::endl;
-        // double lam = calculate_lambda(lost_fragments, static_cast<double>(time_window));
-        // std::cout << "Lambda: " << lam  << " Lost fragments: " << lost_fragments << " Time window: " << time_window << std::endl;
         double lam = report.lambda();
 
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_transmission_time_);
         
         double remaining_time = t_threshold - (duration.count() / 1000.0); // Convert milliseconds to seconds
         if (remaining_time < 0) {
-            std::cout << "Remaining time is negative. Stopping transmission." << std::endl;
             std::cout << "Time threshold exceeded. Stopping transmission." << std::endl;
-            send_final_eot();
-            stop_transmission();
+            should_stop_ = true; // Set the stop flag first
+            
+            // Send final EOT and stop transmission
+            try {
+                send_final_eot(-2); // Use -2 to indicate final EOT
+            } catch (const std::exception& e) {
+                std::cerr << "Error sending final EOT: " << e.what() << std::endl;
+            }
+            
+            // Post a task to stop transmission after a brief delay to allow pending operations to complete
+            timer_.expires_after(std::chrono::milliseconds(100));
+            timer_.async_wait([this](const boost::system::error_code& ec) {
+                if (!ec) {
+                    stop_transmission();
+                }
+            });
             return;
-            // stop_transmission();
-            // return;
         }
+        
         // Call the calculator with the remaining time
         TransmissionTimeCalculator calculator(tier_sizes, FRAGMENT_SIZE, T_TRANSMISSION, 
                                               T_RETRANS, lam, RATE_FRAG, N, remaining_time);
@@ -829,7 +906,6 @@ private:
         update_ec_parameters(tier_id, best_configuration[tier_id]);
 
         // Output the result
-        // std::cout << "Variable Name: " << var_name << std::endl;
         std::cout << "      Tier ID: " << tier_id << std::endl;
         std::cout << "      Updated m parameter to: " << best_configuration[tier_id] << std::endl;
         std::cout << "      Total Fragments: " << total_fragments << std::endl;
@@ -946,7 +1022,7 @@ int main() {
         tier_sizes_tmp.push_back(size * k);
     }
 
-    std::vector<size_t> max_retransmissions = {10, 8, 4, 2};   
+    std::vector<size_t> max_retransmissions = {200, 200, 200, 200};   
     std::cout << "Calling generateFragments..." << std::endl;
     // FragmentStore fragments = generateFragments(tier_sizes, frag_size);
     FragmentStore fragments = generateFragments(tier_sizes_tmp, 4096, current_m);
@@ -974,11 +1050,11 @@ int main() {
         sender.start_sender(fragments);
         
         // Add progress monitoring
-        while (!io_context.stopped()) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            // std::cout << "Progress: " 
-            //         << (sender.total_bytes_sent() * 100.0 / total_data_size) << "%\r";
-        }
+        // while (!io_context.stopped()) {
+        //     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        //     // std::cout << "Progress: " 
+        //     //         << (sender.total_bytes_sent() * 100.0 / total_data_size) << "%\r";
+        // }
         
         io_thread.join();
     }
