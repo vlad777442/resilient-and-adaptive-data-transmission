@@ -19,10 +19,10 @@
 #include <numeric>
 
 // #define IPADDRESS "155.98.36.32"// 
-#define IPADDRESS "128.110.217.138"
+#define IPADDRESS "130.127.134.79"
 #define UDP_PORT 60001
 #define TCP_PORT 12346
-#define SLEEP_DURATION 10000
+#define SLEEP_DURATION 0
 
 #define FRAGMENT_SIZE 4096
 #define RATE_FRAG 19144.6
